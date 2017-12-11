@@ -1,9 +1,11 @@
 var mongoose = require('mongoose');
 var schema = new mongoose.Schema({
-    domain: String, submittedSubdomains: {
-        type: Array, default: []
+    domain: {
+        type: String, index: true
+    }, submittedSubdomains: {
+        type: [String], default: []
     }, validSubdomains: {
-        type: Array, default: []
+        type: [String], default: []
     }
 });
 module.exports = mongoose.model('Domains', schema);
