@@ -110,3 +110,9 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
+.gitignore
+.idea/Anubis-DB.iml
+.idea/inspectionProfiles/
+.idea/modules.xml
+.idea/vcs.xml
+.idea/workspace.xml
