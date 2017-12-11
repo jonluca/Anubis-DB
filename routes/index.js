@@ -14,6 +14,12 @@ router.get('/subdomains/:domain', function (req, res, next) {
             res.end();
             return;
         }
+        if (docs == undefined) {
+            res.status(300);
+            res.send([]);
+            res.end();
+            return;
+        }
         res.status(200);
         res.send(docs.validSubdomains);
         res.end();
@@ -21,6 +27,13 @@ router.get('/subdomains/:domain', function (req, res, next) {
 });
 router.post('/subdomains/:domain', function (req, res, next) {
     var subdomains = req.body.subdomains;
+    try {
+        subdomains = JSON.parse(subdomains);
+    } catch (e) {
+        res.status(500);
+        res.end();
+        return;
+    }
     var domain = req.param.domain;
     Domains.findOne({"domain": domain}, (err, doc) => {
         if (err) {
@@ -28,15 +41,31 @@ router.post('/subdomains/:domain', function (req, res, next) {
             res.end();
             return;
         }
-        for (var sub of subdomains) {
-            if (doc.validSubdomains.indexOf(sub) == -1) {
-                doc.validSubdomains.push(sub);
-            }
+        if (doc == undefined) {
+            var new_domain = new Domains({
+                domain: domain, validSubdomains: subdomains
+            });
+            new_domain.save((err, doc) => {
+                if (err) {
+                    res.status(500);
+                    res.end();
+                    return;
+                }
+                res.status(200);
+                res.end();
+            });
         }
-        doc.markModified('validSubdomains');
-        res.status(200);
-        res.send(doc.validSubdomains);
-        res.end();
+        else {
+            for (var sub of subdomains) {
+                if (doc.validSubdomains.indexOf(sub) == -1) {
+                    doc.validSubdomains.push(sub);
+                }
+            }
+            doc.markModified('validSubdomains');
+            res.status(200);
+            res.send(doc.validSubdomains);
+            res.end();
+        }
     });
 });
 module.exports = router;
