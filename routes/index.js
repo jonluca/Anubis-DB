@@ -49,7 +49,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
         res.end();
         return;
     }
-    var domain = req.param.domain;
+    var domain = req.params.domain;
     Domains.findOne({"domain": domain}, (err, doc) => {
         if (err) {
             res.status(500);
