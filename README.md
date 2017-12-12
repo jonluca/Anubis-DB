@@ -4,7 +4,7 @@ Sister project to [Anubis](https://github.com/jonluca/Anubis)
 
 ## About
 
-This server came about due to a lack of free and open APIs for subdomain enumeration. 
+This project came about due to a lack of free and open APIs for subdomain enumeration. 
 
 ## Usage
 
