@@ -3,7 +3,7 @@ var router = express.Router();
 var Domains = require('../models/domains');
 var tlds = require('../config/tlds');
 router.get('/', function (req, res, next) {
-    res.render('index', {title: 'Express'});
+    res.render('index', {title: 'Anubis'});
 });
 
 function verifyDomain(domain) {
