@@ -2,11 +2,18 @@ var express = require('express');
 var router = express.Router();
 var Domains = require('../models/domains');
 var tlds = require('../config/tlds');
+var parse = require('url-parse');
 router.get('/', function (req, res, next) {
     res.render('index', {title: 'Anubis'});
 });
 
 function verifyDomain(domain) {
+    var invalid = ["'", "+", ",", "|", "!", "\"", "£", "$", "%", "&", "/", "(", ")", "=", "?", "^", "*", "ç", "°", "§", ";", ":", "_", ">", "]", "[", "@", ")"];
+    for (var char of invalid) {
+        if (domain.indexOf(char) != -1) {
+            return false;
+        }
+    }
     var lowerDomain = domain.toLowerCase();
     for (var tld of tlds) {
         if (lowerDomain.endsWith(tld)) {
@@ -20,7 +27,8 @@ function cleanDomain(domain) {
     domain = domain.replace("https://", "");
     domain = domain.replace("http://", "");
     domain = domain.replace(/^www\./, "");
-    return domain;
+    var url = parse(domain, true);
+    return url.hostname;
 }
 
 router.get('/subdomains/:domain', function (req, res, next) {

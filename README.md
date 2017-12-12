@@ -12,8 +12,8 @@ There is only one endpoing - `https://jonlu.ca/anubis/subdomains/:domain`, where
 
 | Method | Endpoint | Parameters | Return | 
 | -------- | -------- | -------- | -------- |
-| GET | `https://jonluca.me/anubis/subdomains/:domain` | `:domain`: Valid domain (e.g. google.com, reddit.com, etc)| JSON Array of subdomains (`["reddit.com","www.reddit.com","blog.reddit.com"...]`)|
-| POST | `https://jonluca.me/anubis/subdomains/:domain` | `subdomains`: Array of submitted subdomains | Status Code (see below) |
+| GET | `https://jonlu.ca/anubis/subdomains/:domain` | `:domain`: Valid domain (e.g. google.com, reddit.com, etc)| `["reddit.com","www.reddit.com","blog.reddit.com"...]`|
+| POST | `https://jonlu.ca/anubis/subdomains/:domain` | `subdomains`: Array of submitted subdomains | Status Code (see below) |
 
 
 A sample AJAX POST request looks like:
@@ -21,7 +21,7 @@ A sample AJAX POST request looks like:
 ```
 $.ajax({
     method: 'POST',
-    url: "https://jonluca.me/anubis/subdomains/reddit.com",
+    url: "https://jonlu.ca/anubis/subdomains/reddit.com",
     type: 'json',
     data: { 
         "subdomains": ["reddit.com","www.reddit.com","blog.reddit.com"]
@@ -31,5 +31,16 @@ $.ajax({
     }
 });
 ```
+
+### Status Codes
+
+| Status | Endpoint | 
+| -------- | -------- | 
+| 200 | Success |
+| 300 | Domain does not exist in database | 
+| 403 | Invalid domain or subdomains | 
+| 500 | Error saving or retrieving new subdomains | 
+
+
 ## Contributing
 
