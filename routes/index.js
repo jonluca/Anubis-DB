@@ -16,8 +16,16 @@ function verifyDomain(domain) {
     return false;
 }
 
+function cleanDomain(domain) {
+    domain = domain.replace("https://", "");
+    domain = domain.replace("http://", "");
+    domain = domain.replace(/^www\./, "");
+    return domain;
+}
+
 router.get('/subdomains/:domain', function (req, res, next) {
     var domain = req.params.domain;
+    domain = cleanDomain(domain);
     if (!verifyDomain(domain) || domain == undefined) {
         res.status(403);
         res.end();
@@ -42,6 +50,13 @@ router.get('/subdomains/:domain', function (req, res, next) {
 });
 router.post('/subdomains/:domain', function (req, res, next) {
     var subdomains = req.body.subdomains;
+    var domain = req.params.domain;
+    domain = cleanDomain(domain);
+    if (!verifyDomain(domain) || domain == undefined || subdomains == undefined) {
+        res.status(403);
+        res.end();
+        return;
+    }
     try {
         subdomains = JSON.parse(subdomains);
     } catch (e) {
@@ -49,7 +64,6 @@ router.post('/subdomains/:domain', function (req, res, next) {
         res.end();
         return;
     }
-    var domain = req.params.domain;
     Domains.findOne({"domain": domain}, (err, doc) => {
         if (err) {
             res.status(500);
