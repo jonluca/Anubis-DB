@@ -17,8 +17,8 @@ function verifyDomain(domain) {
 }
 
 router.get('/subdomains/:domain', function (req, res, next) {
-    var domain = req.param.domain;
-    if (!verifyDomain(domain)) {
+    var domain = req.params.domain;
+    if (!verifyDomain(domain) || domain == undefined) {
         res.status(403);
         res.end();
         return;
