@@ -49,3 +49,6 @@ There is also a 10,000 subdomain limit.
 
 ## Contributing
 
+The most straighforward way of contributing is just to use [Anubis](https://gitub.com/jonluca/anubis) and have it sends its results to AnubisDB. 
+
+Contributions to AnubisDB are always appreciated, as well. Currently parsing and over-use protections are lacking. Take a look at the issues and see if there is anything that you'd like to contribute to. 
