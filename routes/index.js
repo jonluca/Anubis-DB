@@ -23,6 +23,16 @@ function verifyDomain(domain) {
     return false;
 }
 
+function verifySubdomains(subdomains) {
+    if (!Array.isArray(subdomains)) {
+        return false;
+    }
+    if (subdomains.length > 10000) {
+        return false;
+    }
+    return true;
+}
+
 function cleanDomain(domain) {
     domain = domain.replace("https://", "");
     domain = domain.replace("http://", "");
@@ -60,7 +70,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
     var subdomains = req.body.subdomains;
     var domain = req.params.domain;
     domain = cleanDomain(domain);
-    if (!verifyDomain(domain) || domain == undefined || subdomains == undefined) {
+    if (!verifyDomain(domain) || !verifySubdomains(subdomains) || domain == undefined || subdomains == undefined) {
         console.log(`Invalid domain: ${domain}`);
         res.status(403);
         res.end();
@@ -79,7 +89,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
             res.end();
             return;
         }
-        if (doc == undefined) {
+        if (doc == undefined || !verifySubdomains(doc.validSubdomains)) {
             var new_domain = new Domains({
                 domain: domain, validSubdomains: subdomains
             });

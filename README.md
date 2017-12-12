@@ -41,6 +41,11 @@ $.ajax({
 | 403 | Invalid domain or subdomains | 
 | 500 | Error saving or retrieving new subdomains | 
 
+## Limits
+
+You're limited to 100 requests per 15 minute period.
+
+There is also a 10,000 subdomain limit.
 
 ## Contributing
 
