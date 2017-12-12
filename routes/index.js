@@ -2,7 +2,6 @@ var express = require('express');
 var router = express.Router();
 var Domains = require('../models/domains');
 var tlds = require('../config/tlds');
-var parse = require('url-parse');
 router.get('/', function (req, res, next) {
     res.render('index', {title: 'Anubis'});
 });
@@ -11,6 +10,7 @@ function verifyDomain(domain) {
     var invalid = ["'", "+", ",", "|", "!", "\"", "£", "$", "%", "&", "/", "(", ")", "=", "?", "^", "*", "ç", "°", "§", ";", ":", "_", ">", "]", "[", "@", ")"];
     for (var char of invalid) {
         if (domain.indexOf(char) != -1) {
+            console.log(`Domain ${domain} failed with char ${char}`);
             return false;
         }
     }
@@ -27,14 +27,14 @@ function cleanDomain(domain) {
     domain = domain.replace("https://", "");
     domain = domain.replace("http://", "");
     domain = domain.replace(/^www\./, "");
-    var url = parse(domain, true);
-    return url.hostname;
+    return domain;
 }
 
 router.get('/subdomains/:domain', function (req, res, next) {
     var domain = req.params.domain;
     domain = cleanDomain(domain);
     if (!verifyDomain(domain) || domain == undefined) {
+        console.log(`Invalid domain: ${domain}`);
         res.status(403);
         res.end();
         return;
@@ -61,6 +61,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
     var domain = req.params.domain;
     domain = cleanDomain(domain);
     if (!verifyDomain(domain) || domain == undefined || subdomains == undefined) {
+        console.log(`Invalid domain: ${domain}`);
         res.status(403);
         res.end();
         return;
