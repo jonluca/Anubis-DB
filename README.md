@@ -23,7 +23,9 @@ $.ajax({
     method: 'POST',
     url: "https://jonluca.me/anubis/subdomains/reddit.com",
     type: 'json',
-    data: ["reddit.com","www.reddit.com","blog.reddit.com"]
+    data: { 
+        "subdomains": ["reddit.com","www.reddit.com","blog.reddit.com"]
+    }
     success: function(data, textStatus, jqXHR) {
         //Handle data and status code here
     }
