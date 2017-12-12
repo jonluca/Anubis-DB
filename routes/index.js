@@ -68,18 +68,20 @@ router.get('/subdomains/:domain', function (req, res, next) {
 });
 router.post('/subdomains/:domain', function (req, res, next) {
     var subdomains = req.body.subdomains;
+    if (typeof(subdomains) != "object") {
+        try {
+            subdomains = JSON.parse(subdomains);
+        } catch (e) {
+            res.status(500);
+            res.end();
+            return;
+        }
+    }
     var domain = req.params.domain;
     domain = cleanDomain(domain);
     if (!verifyDomain(domain) || !verifySubdomains(subdomains) || domain == undefined || subdomains == undefined) {
         console.log(`Invalid domain: ${domain}`);
         res.status(403);
-        res.end();
-        return;
-    }
-    try {
-        subdomains = JSON.parse(subdomains);
-    } catch (e) {
-        res.status(500);
         res.end();
         return;
     }
