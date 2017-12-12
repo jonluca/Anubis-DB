@@ -1,13 +1,28 @@
 var express = require('express');
 var router = express.Router();
-var mongoose = require('mongoose');
 var Domains = require('../models/domains');
-Domains.create;
+var tlds = require('../config/tlds');
 router.get('/', function (req, res, next) {
     res.render('index', {title: 'Express'});
 });
+
+function verifyDomain(domain) {
+    var lowerDomain = domain.toLowerCase();
+    for (var tld of tlds) {
+        if (lowerDomain.endsWith(tld)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 router.get('/subdomains/:domain', function (req, res, next) {
     var domain = req.param.domain;
+    if (!verifyDomain(domain)) {
+        res.status(403);
+        res.end();
+        return;
+    }
     Domains.findOne({"domain": domain}, (err, docs) => {
         if (err) {
             res.status(500);
