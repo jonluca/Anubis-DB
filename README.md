@@ -12,7 +12,7 @@ There is only one endpoing - `https://jonlu.ca/anubis/subdomains/:domain`, where
 
 | Method | Endpoint | Parameters | Return | 
 | -------- | -------- | -------- | -------- |
-| GET | `https://jonlu.ca/anubis/subdomains/` + `domain` | `:domain`: Valid domain (e.g. google.com, reddit.com, etc) |
+| GET | `https://jonlu.ca/anubis/subdomains/` + `domain` | `domain`: Valid domain (e.g. google.com, reddit.com, etc) |
 | POST | `https://jonlu.ca/anubis/subdomains/` + `domain` | `subdomains`: Array of submitted subdomains | 
 
 
