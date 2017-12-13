@@ -10,8 +10,8 @@ This project came about due to a lack of free and open APIs for subdomain enumer
 
 There is only one endpoing - `https://jonlu.ca/anubis/subdomains/:domain`, where `:domain` is the domain. 
 
-| Method | Endpoint | Parameters | Return | 
-| -------- | -------- | -------- | -------- |
+| Method | Endpoint | Parameters | 
+| -------- | -------- | -------- | 
 | GET | `https://jonlu.ca/anubis/subdomains/` + `domain` | `domain`: Valid domain (e.g. google.com, reddit.com, etc) |
 | POST | `https://jonlu.ca/anubis/subdomains/` + `domain` | `subdomains`: Array of submitted subdomains | 
 
