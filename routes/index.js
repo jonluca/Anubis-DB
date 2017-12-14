@@ -49,6 +49,7 @@ router.get('/subdomains/:domain', function (req, res, next) {
     if (!verifyDomain(domain) || domain == undefined) {
         console.log(`Invalid domain: ${domain}`);
         res.status(403);
+        res.send({"error": "Invalid domain!"});
         res.end();
         return;
     }
@@ -85,6 +86,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
     if (!verifyDomain(domain) || !verifySubdomains(subdomains) || domain == undefined || subdomains == undefined) {
         console.log(`Invalid domain: ${domain}`);
         res.status(403);
+        res.send({"error": "Invalid domain or subdomains (note: max 10000 subdomains can be submitted)!"});
         res.end();
         return;
     }
