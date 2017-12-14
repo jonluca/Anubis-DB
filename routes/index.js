@@ -20,14 +20,17 @@ function verifyDomain(domain) {
             return true;
         }
     }
+    console.log(`Domain ${domain} does not end with any known TLD`);
     return false;
 }
 
 function verifySubdomains(subdomains) {
     if (!Array.isArray(subdomains)) {
+        console.log(`Subdomains is not an array`);
         return false;
     }
     if (subdomains.length > 10000) {
+        console.log(`More than 1000 subdomains - first one ${domain[0]}`);
         return false;
     }
     return true;
