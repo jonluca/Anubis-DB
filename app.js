@@ -10,17 +10,24 @@ var app = express();
 var RateLimit = require('express-rate-limit');
 app.enable('trust proxy');
 const morgan = require('morgan');
+const helmet = require('helmet');
+
 var limiter = new RateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // limit each IP to 100 requests per windowMs
     delayMs: 0 // disable delaying - full speed until the max limit is reached
 });
+// Logging
 const accessLogStream = fs.createWriteStream(path.join(__dirname, '../logs/access.log'), {
     flags: 'a'
 });
 app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"', {
     stream: accessLogStream
 }));
+
+// Header security
+app.use(helmet());
+
 //  apply to all requests
 app.use(limiter);
 // view engine setup
