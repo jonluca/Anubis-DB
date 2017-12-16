@@ -96,16 +96,19 @@ router.post('/subdomains/:domain', function (req, res, next) {
             res.end();
             return;
         }
-        if (doc == undefined || !verifySubdomains(doc.validSubdomains)) {
+        if (doc == undefined) {
+            console.log(`Domain ${domain} not found, creating domain`);
             var new_domain = new Domains({
                 domain: domain, validSubdomains: subdomains
             });
             new_domain.save((err, doc) => {
                 if (err) {
+                    console.log(`Error creating ${domain}`);
                     res.status(500);
                     res.end();
                     return;
                 }
+                console.log(`Succesfully created ${domain}`);
                 res.status(200);
                 res.end();
             });
@@ -116,6 +119,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
                     doc.validSubdomains.push(sub);
                 }
             }
+            console.log(`Appended new subdomains to ${domain}`);
             doc.markModified('validSubdomains');
             res.status(200);
             res.send(doc.validSubdomains);
