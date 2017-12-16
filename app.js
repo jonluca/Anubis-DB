@@ -16,6 +16,8 @@ var limiter = new RateLimit({
     max: 100, // limit each IP to 100 requests per windowMs
     delayMs: 0 // disable delaying - full speed until the max limit is reached
 });
+app.enable('trust proxy');
+
 // Logging
 const accessLogStream = fs.createWriteStream(path.join(__dirname, './logs/access.log'), {
     flags: 'a'
@@ -23,7 +25,6 @@ const accessLogStream = fs.createWriteStream(path.join(__dirname, './logs/access
 app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"', {
     stream: accessLogStream
 }));
-app.enable('trust proxy');
 // Header security
 app.use(helmet());
 //  apply to all requests
