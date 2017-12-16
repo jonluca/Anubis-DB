@@ -66,11 +66,13 @@ router.get('/subdomains/:domain', function (req, res, next) {
     }
     Domains.findOne({"domain": domain}, (err, docs) => {
         if (err) {
+            console.log(`Error finding domain for post: ${domain}`);
             res.status(500);
             res.end();
             return;
         }
         if (docs == undefined) {
+            console.log(`Error finding domain for post: ${domain} - undefined`);
             res.status(300);
             res.send([]);
             res.end();
@@ -83,16 +85,17 @@ router.get('/subdomains/:domain', function (req, res, next) {
 });
 router.post('/subdomains/:domain', function (req, res, next) {
     var subdomains = req.body.subdomains;
+    var domain = req.params.domain;
     if (typeof(subdomains) != "object") {
         try {
             subdomains = JSON.parse(subdomains);
         } catch (e) {
+            console.log(`Error parsing JSON for ${domain}`);
             res.status(500);
             res.end();
             return;
         }
     }
-    var domain = req.params.domain;
     domain = cleanDomain(domain);
     if (!verifyDomain(domain) || !verifySubdomains(subdomains) || domain == undefined || subdomains == undefined) {
         console.log(`Invalid domain: ${domain}`);
@@ -103,6 +106,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
     }
     Domains.findOne({"domain": domain}, (err, doc) => {
         if (err) {
+            console.log(`Error finding domain for post: ${domain}`);
             res.status(500);
             res.end();
             return;
@@ -126,6 +130,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
         }
         else {
             if (doc.validSubdomains.length > 10000) {
+                console.log(`${domain} subdomains at capacity`);
                 res.status(304);
                 res.send();
                 return;
