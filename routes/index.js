@@ -121,9 +121,17 @@ router.post('/subdomains/:domain', function (req, res, next) {
             }
             console.log(`Appended new subdomains to ${domain}`);
             doc.markModified('validSubdomains');
-            res.status(200);
-            res.send(doc.validSubdomains);
-            res.end();
+            doc.save((err, doc) => {
+                if (err) {
+                    console.log(`Error appending to ${domain}`);
+                    res.status(500);
+                    res.end();
+                    return;
+                }
+                res.status(200);
+                res.send(doc.validSubdomains);
+                res.end();
+            });
         }
     });
 });
