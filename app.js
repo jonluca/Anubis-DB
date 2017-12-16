@@ -16,7 +16,7 @@ var limiter = new RateLimit({
     max: 100, // limit each IP to 100 requests per windowMs
     delayMs: 0 // disable delaying - full speed until the max limit is reached
 });
-app.enable('trust proxy');
+app.enable('trust proxy', true);
 
 // Logging
 const accessLogStream = fs.createWriteStream(path.join(__dirname, './logs/access.log'), {
