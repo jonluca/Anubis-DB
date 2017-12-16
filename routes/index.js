@@ -6,6 +6,10 @@ router.get('/', function (req, res, next) {
     res.render('index', {title: 'Anubis'});
 });
 
+function onlyUnique(value, index, self) {
+    return self.indexOf(value) === index;
+}
+
 function verifyDomain(domain) {
     var invalid = ["'", "+", ",", "|", "!", "\"", "£", "$", "%", "&", "/", "(", ")", "=", "?", "^", "*", "ç", "°", "§", ";", ":", "_", ">", "]", "[", "@", ")"];
     for (var char of invalid) {
@@ -114,11 +118,17 @@ router.post('/subdomains/:domain', function (req, res, next) {
             });
         }
         else {
+            if (doc.validSubdomains.length > 10000) {
+                res.status(304);
+                res.send();
+                return;
+            }
             for (var sub of subdomains) {
                 if (doc.validSubdomains.indexOf(sub) == -1) {
                     doc.validSubdomains.push(sub);
                 }
             }
+            doc.validSubdomains = doc.validSubdomains.filter(onlyUnique); // Sanity check for only unique addresses
             console.log(`Appended new subdomains to ${domain}`);
             doc.markModified('validSubdomains');
             doc.save((err, doc) => {
