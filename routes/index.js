@@ -44,9 +44,16 @@ function cleanDomain(domain) {
     domain = domain.replace("https://", "");
     domain = domain.replace("http://", "");
     domain = domain.replace(/^www\./, "");
+    var is_co = domain.match(/\.co\./);
+    domain = domain.split('.');
+    domain = domain.slice(is_co ? -3 : -2);
+    domain = domain.join('.');
     return domain;
 }
 
+var remove_sub_domain = function (v) {
+    return domain;
+};
 router.get('/subdomains/:domain', function (req, res, next) {
     var domain = req.params.domain;
     domain = cleanDomain(domain);
