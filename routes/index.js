@@ -71,8 +71,8 @@ router.get('/subdomains/:domain', function (req, res, next) {
             res.end();
             return;
         }
+        // Domain not found
         if (docs == undefined) {
-            console.log(`Error finding domain for post: ${domain} - undefined`);
             res.status(300);
             res.send([]);
             res.end();
