@@ -10,7 +10,7 @@
     "cookie-parser": "1.4.3",
     "debug": "2.6.9",
     "express": "4.15.5",
-    "express-rate-limit": "2.11.0",
+    "express-rate-limit": "2.14.2",
     "helmet": "3.9.0",
     "jade": "1.11.0",
     "mongoose": "4.13.6",
