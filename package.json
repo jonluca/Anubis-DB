@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "body-parser": "1.18.3",
-    "cookie-parser": "1.4.3",
+    "cookie-parser": "1.4.4",
     "debug": "2.6.9",
     "express": "4.15.5",
     "express-rate-limit": "2.11.0",
