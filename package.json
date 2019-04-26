@@ -16,6 +16,6 @@
     "morgan": "1.9.1",
     "mongoose": "5.4.22",
     "serve-favicon": "2.5.0",
-    "url-parse": "1.4.4"
+    "url-parse": "1.4.7"
   }
 }
