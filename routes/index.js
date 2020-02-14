@@ -4,7 +4,7 @@ var Domains = require('../models/domains');
 var tlds = require('../config/tlds');
 var URL = require('url').URL;
 
-router.get('/', function (req, res, next) {
+router.get('/', (req, res, next) => {
     res.render('index', {title: 'Anubis'});
 });
 
@@ -13,15 +13,18 @@ function onlyUnique(value, index, self) {
 }
 
 function verifyDomain(domain) {
-    var invalid = ["'", "+", ",", "|", "!", "\"", "£", "$", "%", "&", "/", "(", ")", "=", "?", "^", "*", "ç", "°", "§", ";", ":", "_", ">", "]", "[", "@", ")"];
-    for (var char of invalid) {
-        if (domain.indexOf(char) != -1) {
+    if(!domain){
+        return false;
+    }
+    const invalid = ["'", "+", ",", "|", "!", "\"", "£", "$", "%", "&", "/", "(", ")", "=", "?", "^", "*", "ç", "°", "§", ";", ":", "_", ">", "]", "[", "@", ")"];
+    for (const char of invalid) {
+        if (domain.includes(char)) {
             console.log(`Domain ${domain} failed with char ${char}`);
             return false;
         }
     }
-    var lowerDomain = domain.toLowerCase();
-    for (var tld of tlds) {
+    const lowerDomain = domain.toLowerCase();
+    for (const tld of tlds) {
         if (lowerDomain.endsWith(tld)) {
             return true;
         }
@@ -40,8 +43,8 @@ function verifySubdomains(subdomains) {
 
 function cleanDomain(domain) {
     try{
-        const url = new URL(domain.startsWith('http') ? domain : `https://${domain}`);
-        return domain.hostname;
+        const host = new URL(domain.startsWith('http') ? domain : `https://${domain}`);
+        return host.hostname;
     }catch(e){
         console.log(`Invalid domain: ${domain}`);
         console.log(e);
@@ -52,11 +55,9 @@ function cleanDomain(domain) {
     return domain;
 }
 
-var remove_sub_domain = function (v) {
-    return domain;
-};
-router.get('/subdomains/:domain', function (req, res, next) {
-    var domain = req.params.domain;
+const remove_sub_domain = v => domain;
+router.get('/subdomains/:domain', ({params}, res, next) => {
+    let domain = params.domain;
     domain = cleanDomain(domain);
     if (!verifyDomain(domain) || domain == undefined) {
         console.log(`Invalid domain: ${domain}`);
@@ -73,7 +74,7 @@ router.get('/subdomains/:domain', function (req, res, next) {
             return;
         }
         // Domain not found
-        if (docs == undefined) {
+        if (!docs) {
             res.status(300);
             res.send([]);
             res.end();
@@ -84,9 +85,9 @@ router.get('/subdomains/:domain', function (req, res, next) {
         res.end();
     });
 });
-router.post('/subdomains/:domain', function (req, res, next) {
-    var subdomains = req.body.subdomains;
-    var domain = req.params.domain;
+router.post('/subdomains/:domain', ({body, params}, res, next) => {
+    let subdomains = body.subdomains;
+    let domain = params.domain;
     if (typeof(subdomains) != "object") {
         try {
             subdomains = JSON.parse(subdomains);
@@ -114,8 +115,8 @@ router.post('/subdomains/:domain', function (req, res, next) {
         }
         if (doc == undefined) {
             console.log(`Domain ${domain} not found, creating domain`);
-            var new_domain = new Domains({
-                domain: domain, validSubdomains: subdomains
+            const new_domain = new Domains({
+                domain, validSubdomains: subdomains
             });
             new_domain.save((err, doc) => {
                 if (err) {
@@ -130,15 +131,15 @@ router.post('/subdomains/:domain', function (req, res, next) {
             });
         }
         else {
-            for (var sub of subdomains) {
-                if (doc.validSubdomains.indexOf(sub) == -1) {
+            for (const sub of subdomains) {
+                if (!doc.validSubdomains.includes(sub)) {
                     doc.validSubdomains.push(sub);
                 }
             }
             doc.validSubdomains = doc.validSubdomains.filter(onlyUnique); // Sanity check for only unique addresses
             console.log(`Appended new subdomains to ${domain}`);
             doc.markModified('validSubdomains');
-            doc.save((err, doc) => {
+            doc.save((err, {validSubdomains}) => {
                 if (err) {
                     console.log(`Error appending to ${domain}`);
                     res.status(500);
@@ -146,7 +147,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
                     return;
                 }
                 res.status(200);
-                res.send(doc.validSubdomains);
+                res.send(validSubdomains);
                 res.end();
             });
         }

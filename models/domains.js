@@ -1,7 +1,7 @@
 var mongoose = require('mongoose');
 
-mongoose.connect("mongodb://localhost/admin", {});
-var schema = new mongoose.Schema({
+mongoose.connect("mongodb://localhost/admin", { useNewUrlParser: true, useUnifiedTopology: true, useCreateIndex: true });
+const schema = new mongoose.Schema({
     domain: {
         type: String, index: true
     }, submittedSubdomains: {
@@ -10,4 +10,5 @@ var schema = new mongoose.Schema({
         type: [String], default: []
     }
 });
+
 module.exports = mongoose.model('Domains', schema);
