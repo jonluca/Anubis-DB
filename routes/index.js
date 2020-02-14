@@ -2,7 +2,7 @@ var express = require('express');
 var router = express.Router();
 var Domains = require('../models/domains');
 var tlds = require('../config/tlds');
-const URL = require('url');
+const url = require('url');
 
 router.get('/', function (req, res, next) {
     res.render('index', {title: 'Anubis'});
