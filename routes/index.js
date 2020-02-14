@@ -102,7 +102,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
         res.end();
         return;
     }
-    Domains.findOne({"domain": domain}, (err, doc) => {
+    Domains.findOne({"domain": {$regex: `.*${domain}`}}, (err, doc) => {
         if (err) {
             console.log(`Error finding domain for post: ${domain}`);
             res.status(500);
