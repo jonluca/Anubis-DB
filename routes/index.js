@@ -33,21 +33,19 @@ function verifySubdomains(subdomains) {
         console.log(`Subdomains is not an array`);
         return false;
     }
-    if (subdomains.length > 10000) {
-        console.log(`More than 1000 subdomains - first one ${domain[0]}`);
-        return false;
-    }
     return true;
 }
 
 function cleanDomain(domain) {
+    try{
+        const url = new URL(domain.startsWith('http') ? domain : `https://${domain}`);
+        return domain.hostname;
+    }catch(e){
+        console.log(`Invalid domain: ${domain}`);
+    }
     domain = domain.replace("https://", "");
     domain = domain.replace("http://", "");
     domain = domain.replace(/^www\./, "");
-    var is_co = domain.match(/\.co\./);
-    domain = domain.split('.');
-    domain = domain.slice(is_co ? -3 : -2);
-    domain = domain.join('.');
     return domain;
 }
 
@@ -100,7 +98,7 @@ router.post('/subdomains/:domain', function (req, res, next) {
     if (!verifyDomain(domain) || !verifySubdomains(subdomains) || domain == undefined || subdomains == undefined) {
         console.log(`Invalid domain: ${domain}`);
         res.status(403);
-        res.send({"error": "Invalid domain or subdomains (note: max 10000 subdomains can be submitted)!"});
+        res.send({"error": "Error with domains sent!"});
         res.end();
         return;
     }
@@ -129,12 +127,6 @@ router.post('/subdomains/:domain', function (req, res, next) {
             });
         }
         else {
-            if (doc.validSubdomains.length > 10000) {
-                console.log(`${domain} subdomains at capacity`);
-                res.status(304);
-                res.send();
-                return;
-            }
             for (var sub of subdomains) {
                 if (doc.validSubdomains.indexOf(sub) == -1) {
                     doc.validSubdomains.push(sub);
