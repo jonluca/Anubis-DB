@@ -1,8 +1,6 @@
 var mongoose = require('mongoose');
-const options = {
-    useMongoClient: true
-};
-mongoose.connect("mongodb://localhost/admin", options);
+
+mongoose.connect("mongodb://localhost/admin", {});
 var schema = new mongoose.Schema({
     domain: {
         type: String, index: true
