@@ -42,6 +42,7 @@ function cleanDomain(domain) {
         return domain.hostname;
     }catch(e){
         console.log(`Invalid domain: ${domain}`);
+        console.log(e);
     }
     domain = domain.replace("https://", "");
     domain = domain.replace("http://", "");
