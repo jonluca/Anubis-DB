@@ -339,10 +339,10 @@ fresh@0.5.2:
   resolved "https://registry.yarnpkg.com/graceful-readlink/-/graceful-readlink-1.0.1.tgz#4cafad76bc62f02fa039b2f94e9a3dd3a391a725"
   integrity sha1-TK+tdrxi8C+gObL5Tpo906ORpyU=
 
-helmet@4.1.1:
-  version "4.1.1"
-  resolved "https://registry.yarnpkg.com/helmet/-/helmet-4.1.1.tgz#751f0e273d809ace9c172073e0003bed27d27a4a"
-  integrity sha512-Avg4XxSBrehD94mkRwEljnO+6RZx7AGfk8Wa6K1nxaU+hbXlFOhlOIMgPfFqOYQB/dBCsTpootTGuiOG+CHiQA==
+helmet@4.2.0:
+  version "4.2.0"
+  resolved "https://registry.yarnpkg.com/helmet/-/helmet-4.2.0.tgz#e81f5613cc1c90402af581794dc9878ad078b237"
+  integrity sha512-aoiSxXMd0ks1ojYpSCFoCRzgv4rY/uB9jKStaw8PkXwsdLYa/Gq+Nc5l0soH0cwBIsLAlujPnx4HLQs+LaXCrQ==
 
 http-errors@1.7.2:
   version "1.7.2"
