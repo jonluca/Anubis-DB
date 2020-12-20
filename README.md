@@ -8,7 +8,7 @@ This project came about due to a lack of free and open APIs for subdomain enumer
 
 ## Usage
 
-There is only one endpoing - `https://jonlu.ca/anubis/subdomains/:domain`, where `:domain` is the domain. 
+There is only one endpoint - `https://jonlu.ca/anubis/subdomains/:domain`, where `:domain` is the domain. 
 
 | Method | Endpoint | Parameters | 
 | -------- | -------- | -------- | 
@@ -18,7 +18,7 @@ There is only one endpoing - `https://jonlu.ca/anubis/subdomains/:domain`, where
 
 A sample AJAX POST request looks like:
 
-```
+```js
 $.ajax({
     method: 'POST',
     url: "https://jonlu.ca/anubis/subdomains/reddit.com",
@@ -49,6 +49,6 @@ There is also a 10,000 subdomain limit per domain.
 
 ## Contributing
 
-The most straighforward way of contributing is just to use [Anubis](https://github.com/jonluca/anubis) and have it sends its results to AnubisDB. 
+The most straightforward way of contributing is just to use [Anubis](https://github.com/jonluca/anubis) and have it sends its results to AnubisDB. 
 
 Contributions to AnubisDB are always appreciated, as well. Currently parsing and over-use protections are lacking. Take a look at the issues and see if there is anything that you'd like to contribute to. 
