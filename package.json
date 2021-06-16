@@ -14,7 +14,7 @@
     "helmet": "4.2.0",
     "jade": "1.11.0",
     "morgan": "1.10.0",
-    "mongoose": "5.11.8",
+    "mongoose": "5.12.14",
     "serve-favicon": "2.5.0",
     "url-parse": "1.4.7"
   }
