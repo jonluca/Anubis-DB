@@ -134,7 +134,7 @@ router.post('/subdomains/:domain', ({body, params}, res, next) => {
         else {
             for (const sub of subdomains) {
                 sub = cleanDomain(sub)
-                if (!doc.validSubdomains.includes(sub) && verifyDomain(sub) && sub != domain) {
+                if (!doc.validSubdomains.includes(sub) && verifyDomain(sub) && sub.startsWith('.' + domain)) {
                     doc.validSubdomains.push(sub);
                 }
             }
