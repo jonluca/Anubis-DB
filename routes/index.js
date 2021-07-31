@@ -16,7 +16,7 @@ function verifyDomain(domain) {
     if(!domain){
         return false;
     }
-    const invalid = ["'", "+", ",", "|", "!", "\"", "£", "$", "%", "&", "/", "(", ")", "=", "?", "^", "*", "ç", "°", "§", ";", ":", "_", ">", "]", "[", "@", ")"];
+    const invalid = ["*", "\\", "'", "+", ",", "|", "!", "\"", "£", "$", "%", "&", "/", "(", ")", "=", "?", "^", "*", "ç", "°", "§", ";", ":", "_", ">", "]", "[", "@", ")"];
     for (const char of invalid) {
         if (domain.includes(char)) {
             console.log(`Domain ${domain} failed with char ${char}`);
@@ -52,6 +52,7 @@ function cleanDomain(domain) {
     domain = domain.replace("https://", "");
     domain = domain.replace("http://", "");
     domain = domain.replace(/^www\./, "");
+    domain = domain.replace(/^\*\./, "");
     return domain;
 }
 
@@ -132,7 +133,8 @@ router.post('/subdomains/:domain', ({body, params}, res, next) => {
         }
         else {
             for (const sub of subdomains) {
-                if (!doc.validSubdomains.includes(sub)) {
+                sub = cleanDomain(sub)
+                if (!doc.validSubdomains.includes(sub) && verifyDomain(sub) && sub != domain) {
                     doc.validSubdomains.push(sub);
                 }
             }
