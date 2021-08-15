@@ -13,9 +13,13 @@
     "express-rate-limit": "5.2.3",
     "helmet": "4.6.0",
     "jade": "1.11.0",
-    "morgan": "1.10.0",
+    "lodash": "^4.17.21",
     "mongoose": "5.11.8",
+    "morgan": "1.10.0",
     "serve-favicon": "2.5.0",
     "url-parse": "1.4.7"
+  },
+  "devDependencies": {
+    "prettier": "^2.3.2"
   }
 }
