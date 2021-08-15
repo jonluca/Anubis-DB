@@ -177,7 +177,7 @@ router.post("/subdomains/:domain", ({ body, params }, res, next) => {
     } else {
       for (const sub of validSubdomains) {
         if (!doc.validSubdomains.includes(sub)) {
-          doc.validSubdomains.push(newSub);
+          doc.validSubdomains.push(sub);
         }
       }
       doc.validSubdomains = uniq(doc.validSubdomains);
