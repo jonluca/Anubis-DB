@@ -129,7 +129,11 @@ router.get("/subdomains/:domain", ({ params }, res, next) => {
       return;
     }
     res.status(200);
-    res.send(getCleanedSubdomains(docs.validSubdomains || []));
+    res.send(
+      getCleanedSubdomains(docs.validSubdomains || []).filter((newSub) =>
+        newSub.endsWith("." + domain)
+      )
+    );
     res.end();
   });
 });
