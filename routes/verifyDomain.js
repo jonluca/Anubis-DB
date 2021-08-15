@@ -137,11 +137,17 @@ router.post("/subdomains/:domain", ({ body, params }, res, next) => {
   }
 
   const validSubdomains = subdomains
-    .map((subdomain) => {
-      const newSub = cleanDomain(subdomain);
-      if (verifyDomain(newSub) && newSub.endsWith("." + domain)) {
-        return newSub;
-      }
+    .flatMap((subdomain) => {
+      return subdomain
+        .split(/,|<br>/)
+        .filter(Boolean)
+        .map((splitSub) => {
+          const newSub = cleanDomain(splitSub);
+          if (verifyDomain(newSub) && newSub.endsWith("." + domain)) {
+            return newSub;
+          }
+          return [];
+        });
     })
     .filter(Boolean);
   Domains.findOne({ domain: { $regex: `.*${domain}` } }, (err, doc) => {
