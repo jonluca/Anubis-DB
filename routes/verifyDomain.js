@@ -146,8 +146,9 @@ router.post("/subdomains/:domain", ({ body, params }, res, next) => {
           if (verifyDomain(newSub) && newSub.endsWith("." + domain)) {
             return newSub;
           }
-          return [];
-        });
+          return "";
+        })
+        .filter(Boolean);
     })
     .filter(Boolean);
   Domains.findOne({ domain: { $regex: `.*${domain}` } }, (err, doc) => {
