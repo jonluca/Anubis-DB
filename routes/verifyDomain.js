@@ -66,21 +66,23 @@ const verifySubdomains = (subdomains) => {
 };
 
 const getCleanedSubdomains = (subdomains) => {
-  return (subdomains || [])
-    .flatMap((subdomain) => {
-      return subdomain
-        .split(/,|<br>/)
-        .filter(Boolean)
-        .map((splitSub) => {
-          const newSub = cleanDomain(splitSub);
-          if (verifyDomain(newSub)) {
-            return newSub;
-          }
-          return "";
-        })
-        .filter(Boolean);
-    })
-    .filter(Boolean);
+  return uniq(
+    (subdomains || [])
+      .flatMap((subdomain) => {
+        return subdomain
+          .split(/,|<br>/)
+          .filter(Boolean)
+          .map((splitSub) => {
+            const newSub = cleanDomain(splitSub);
+            if (verifyDomain(newSub)) {
+              return newSub;
+            }
+            return "";
+          })
+          .filter(Boolean);
+      })
+      .filter(Boolean)
+  );
 };
 const cleanDomain = (domain) => {
   try {
