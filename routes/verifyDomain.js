@@ -65,6 +65,23 @@ const verifySubdomains = (subdomains) => {
   return Array.isArray(subdomains);
 };
 
+const getCleanedSubdomains = (subdomains) => {
+  return (subdomains || [])
+    .flatMap((subdomain) => {
+      return subdomain
+        .split(/,|<br>/)
+        .filter(Boolean)
+        .map((splitSub) => {
+          const newSub = cleanDomain(splitSub);
+          if (verifyDomain(newSub)) {
+            return newSub;
+          }
+          return "";
+        })
+        .filter(Boolean);
+    })
+    .filter(Boolean);
+};
 const cleanDomain = (domain) => {
   try {
     const host = new URL(
@@ -110,7 +127,7 @@ router.get("/subdomains/:domain", ({ params }, res, next) => {
       return;
     }
     res.status(200);
-    res.send(docs.validSubdomains);
+    res.send(getCleanedSubdomains(docs.validSubdomains || []));
     res.end();
   });
 });
@@ -136,21 +153,9 @@ router.post("/subdomains/:domain", ({ body, params }, res, next) => {
     return;
   }
 
-  const validSubdomains = subdomains
-    .flatMap((subdomain) => {
-      return subdomain
-        .split(/,|<br>/)
-        .filter(Boolean)
-        .map((splitSub) => {
-          const newSub = cleanDomain(splitSub);
-          if (verifyDomain(newSub) && newSub.endsWith("." + domain)) {
-            return newSub;
-          }
-          return "";
-        })
-        .filter(Boolean);
-    })
-    .filter(Boolean);
+  const validSubdomains = getCleanedSubdomains(subdomains).filter((newSub) =>
+    newSub.endsWith("." + domain)
+  );
   Domains.findOne({ domain: { $regex: `.*${domain}` } }, (err, doc) => {
     if (err) {
       console.log(`Error finding domain for post: ${domain}`);
@@ -181,7 +186,7 @@ router.post("/subdomains/:domain", ({ body, params }, res, next) => {
           doc.validSubdomains.push(sub);
         }
       }
-      doc.validSubdomains = uniq(doc.validSubdomains);
+      doc.validSubdomains = uniq(getCleanedSubdomains(doc.validSubdomains));
       console.log(`Appended new subdomains to ${domain}`);
       doc.markModified("validSubdomains");
       doc.save((err, { validSubdomains }) => {
