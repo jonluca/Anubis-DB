@@ -17,7 +17,7 @@
     "mongoose": "5.13.7",
     "morgan": "1.10.0",
     "serve-favicon": "2.5.0",
-    "url-parse": "1.5.3"
+    "url-parse": "1.5.9"
   },
   "devDependencies": {
     "prettier": "2.3.2"
