@@ -92,7 +92,6 @@ const cleanDomain = (domain) => {
     return (host.hostname || "").trim();
   } catch (e) {
     console.log(`Invalid domain: ${domain}`);
-    console.log(e);
   }
   domain = (domain || "")
     .replace("https://", "")
