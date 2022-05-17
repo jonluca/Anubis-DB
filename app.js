@@ -10,28 +10,34 @@ const fs = require("fs");
 const RateLimit = require("express-rate-limit");
 const morgan = require("morgan");
 const helmet = require("helmet");
-const limiter = new RateLimit({
+const limiter = RateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // limit each IP to 100 requests per windowMs
   delayMs: 0, // disable delaying - full speed until the max limit is reached
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
+
+const rfs = require("rotating-file-stream");
+
 app.enable("trust proxy", true);
 
 // Logging
-const accessLogStream = fs.createWriteStream(
-  path.join(__dirname, "./logs/access.log"),
-  {
-    flags: "a",
-  }
-);
+const accessLogStream = rfs.createStream("access.log", {
+  size: "1G",
+  compress: "gzip",
+  path: path.join(__dirname, "./logs/"),
+});
+
 app.use(
   morgan(
-    ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"',
+    ':remote-addr :remote-user [:date[iso]] ":method :url" :status :res[content-length]',
     {
       stream: accessLogStream,
     }
   )
 );
+
 // Header security
 app.use(helmet());
 //  apply to all requests

@@ -3,9 +3,9 @@
 /**
  * Module dependencies.
  */
-const app = require('../app');
-const debug = require('debug')('anubis-db:server');
-const http = require('http');
+const app = require("../app");
+const http = require("http");
+const connectToDb = require("./db");
 
 /**
  * Create HTTP server.
@@ -15,7 +15,7 @@ const server = http.createServer(app);
 /**
  * Normalize a port into a number, string, or false.
  */
-const normalizePort = val => {
+const normalizePort = (val) => {
   const port = parseInt(val, 10);
 
   if (isNaN(port)) {
@@ -34,21 +34,21 @@ const normalizePort = val => {
 /**
  * Event listener for HTTP server "error" event.
  */
-const onError = error => {
-  if (error.syscall !== 'listen') {
+const onError = (error) => {
+  if (error.syscall !== "listen") {
     throw error;
   }
 
-  const bind = typeof port === 'string' ? 'Pipe ' + port : 'Port ' + port;
+  const bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
 
   // handle specific listen errors with friendly messages
   switch (error.code) {
-    case 'EACCES':
-      console.error(bind + ' requires elevated privileges');
+    case "EACCES":
+      console.error(bind + " requires elevated privileges");
       process.exit(1);
       break;
-    case 'EADDRINUSE':
-      console.error(bind + ' is already in use');
+    case "EADDRINUSE":
+      console.error(bind + " is already in use");
       process.exit(1);
       break;
     default:
@@ -61,20 +61,21 @@ const onError = error => {
  */
 const onListening = () => {
   const addr = server.address();
-  const bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port;
-  debug('Listening on ' + bind);
+  const bind = typeof addr === "string" ? "pipe " + addr : "port " + addr.port;
+  console.log("Listening on " + bind);
 };
 /**
  * Get port from environment and store in Express.
  */
-const port = normalizePort(process.env.PORT || '5634');
-app.set('port', port);
-
+const port = normalizePort(process.env.PORT || "5634");
+app.set("port", port);
 
 /**
  * Listen on provided port, on all network interfaces.
  */
-
-server.listen(port);
-server.on('error', onError);
-server.on('listening', onListening);
+connectToDb().then(() => {
+  console.log("Connected to mongo");
+  server.listen(port);
+  server.on("error", onError);
+  server.on("listening", onListening);
+});

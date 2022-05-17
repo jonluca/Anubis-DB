@@ -1,10 +1,5 @@
 const mongoose = require("mongoose");
 
-mongoose.connect("mongodb://localhost/admin", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  useCreateIndex: true,
-});
 const schema = new mongoose.Schema({
   domain: {
     type: String,
