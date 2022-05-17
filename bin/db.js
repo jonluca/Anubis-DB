@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const connectToDb = async () => {
   console.log("Connecting to mongo");
-  await mongoose.connect("mongodb://127.0.0.1/admin", {
+  await mongoose.connect("mongodb://localhost/admin", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
