@@ -58,8 +58,15 @@ app.use(
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/", index);
 
+class NotFoundError extends Error {
+  status = 404;
+  constructor(props) {
+    super(props);
+  }
+}
+
 app.use((req, res, next) => {
-  const err = new Error("Not Found");
+  const err = new NotFoundError("Not Found");
   res.status(404);
   next(err);
 });
