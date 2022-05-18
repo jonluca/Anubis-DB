@@ -1,13 +1,9 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const schema = new mongoose.Schema({
   domain: {
     type: String,
     index: true,
-  },
-  submittedSubdomains: {
-    type: [String],
-    default: [],
   },
   validSubdomains: {
     type: [String],
@@ -15,4 +11,4 @@ const schema = new mongoose.Schema({
   },
 });
 
-module.exports = mongoose.model("Domains", schema);
+export default mongoose.model("Domains", schema);

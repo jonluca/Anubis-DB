@@ -3,9 +3,9 @@
 /**
  * Module dependencies.
  */
-const app = require("../app");
-const http = require("http");
-const connectToDb = require("./db");
+import app from "./app";
+import connectToDb from "./models/db";
+import http from "http";
 
 /**
  * Create HTTP server.
@@ -74,7 +74,6 @@ app.set("port", port);
  * Listen on provided port, on all network interfaces.
  */
 connectToDb().then(() => {
-  console.log("Connected to mongo");
   server.listen(port);
   server.on("error", onError);
   server.on("listening", onListening);

@@ -1,26 +1,23 @@
-const express = require("express");
-const path = require("path");
-const logger = require("morgan");
-const cookieParser = require("cookie-parser");
-const bodyParser = require("body-parser");
-const index = require("./routes/verifyDomain");
-const app = express();
-const fs = require("fs");
-//Rate limiter
-const RateLimit = require("express-rate-limit");
-const morgan = require("morgan");
-const helmet = require("helmet");
+import express from "express";
+import path from "path";
+import bodyParser from "body-parser";
+import index from "./routes";
+import rfs from "rotating-file-stream";
+import RateLimit from "express-rate-limit";
+import morgan from "morgan";
+
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const limiter = RateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // limit each IP to 100 requests per windowMs
-  delayMs: 0, // disable delaying - full speed until the max limit is reached
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
-
-const rfs = require("rotating-file-stream");
-
-app.enable("trust proxy", true);
 
 // Logging
 const accessLogStream = rfs.createStream("access.log", {
@@ -28,6 +25,10 @@ const accessLogStream = rfs.createStream("access.log", {
   compress: "gzip",
   path: path.join(__dirname, "./logs/"),
 });
+
+const app = express();
+app.enable("trust proxy");
+app.disable("x-powered-by");
 
 app.use(
   morgan(
@@ -38,17 +39,14 @@ app.use(
   )
 );
 
-// Header security
-app.use(helmet());
 //  apply to all requests
 app.use(limiter);
 // view engine setup
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "jade");
-// uncomment after placing your favicon in /public
-//app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
-app.use(logger("dev"));
+
 app.use(bodyParser.json({ limit: "50mb" }));
+
 app.use(
   bodyParser.urlencoded({
     extended: false,
@@ -56,17 +54,16 @@ app.use(
     parameterLimit: 50000,
   })
 );
-app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/", index);
-// catch 404 and forward to error handler
-app.use(function (req, res, next) {
+
+app.use((req, res, next) => {
   const err = new Error("Not Found");
-  err.status = 404;
+  res.status(404);
   next(err);
 });
-// error handler
-app.use(function (err, req, res, next) {
+
+app.use((err, req, res, next) => {
   // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get("env") === "development" ? err : {};
@@ -74,4 +71,4 @@ app.use(function (err, req, res, next) {
   res.status(err.status || 500);
   res.render("error");
 });
-module.exports = app;
+export default app;
