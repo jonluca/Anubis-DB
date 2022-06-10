@@ -1,8 +1,19 @@
 body {
   padding: 50px;
-  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+  display: block;
+  margin: 8px;
+  max-width: 100vw;
 }
 
 a {
-  color: #00B7FF;
+  color: #00b7ff;
+}
+
+html {
+  line-height: 1.15;
+  -ms-text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  font-family: "Lucida Grande", Helvetica, Arial, sans-serif;
+  font-size: 1.2rem;
+  box-sizing: border-box;
 }
