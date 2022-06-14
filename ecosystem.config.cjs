@@ -8,7 +8,7 @@ module.exports = {
     {
       name: "Anubis",
       log_date_format: "YYYY-MM-DDTHH:mm:ss.SSS",
-      script: "yarn start",
+      script: "yarn serve",
       env: {
         NODE_ENV: "production",
       },

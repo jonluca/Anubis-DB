@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "t-node": "node --no-warnings --experimental-specifier-resolution=node --loader ts-node/esm ",
-    "start": "yarn t-node start.ts"
+    "start": "yarn t-node src/start.ts",
+    "node-prod": "node --experimental-specifier-resolution=node --no-warnings",
+    "serve": "yarn build && yarn node-prod ./dist/start.js",
+    "build": "swc ./src -d dist --config-file .swcrc --include-dotfiles --copy-files"
   },
   "dependencies": {
+    "@swc/cli": "^0.1.57",
+    "@swc/core": "^1.2.198",
     "@types/express": "^4.17.13",
     "@types/lodash-es": "^4.17.6",
     "@types/node": "^17.0.41",
