@@ -35,11 +35,11 @@ router.get("/subdomains/:domain", async ({ params }, res, next) => {
       return;
     }
     res.status(200);
-    res.send(
-      getCleanedSubdomains(docs.validSubdomains || []).filter((newSub) =>
-        newSub.endsWith(`.${domain}`)
-      )
+    const cleanedSubdomains = getCleanedSubdomains(docs.validSubdomains || []);
+    const response = cleanedSubdomains.filter((newSub) =>
+      newSub.endsWith(`.${domain}`)
     );
+    res.send(response);
     res.end();
   } catch (err) {
     console.log(`Error finding domain for post: ${domain}`);

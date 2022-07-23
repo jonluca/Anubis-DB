@@ -5,6 +5,7 @@ import index from "./routes";
 import rfs from "rotating-file-stream";
 import RateLimit from "express-rate-limit";
 import morgan from "morgan";
+import compression from "compression";
 
 import { fileURLToPath } from "url";
 import { dirname } from "path";
@@ -14,7 +15,7 @@ const __dirname = dirname(__filename);
 
 const limiter = RateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 100 requests per windowMs
+  max: 2000, // limit each IP to X requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
@@ -29,6 +30,7 @@ const accessLogStream = rfs.createStream("access.log", {
 const app = express();
 app.enable("trust proxy");
 app.disable("x-powered-by");
+app.use(compression());
 app.use(morgan("dev"));
 
 app.use(

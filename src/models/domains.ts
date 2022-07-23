@@ -8,6 +8,7 @@ const schema = new mongoose.Schema({
   validSubdomains: {
     type: [String],
     default: [],
+    index: true,
   },
 });
 
