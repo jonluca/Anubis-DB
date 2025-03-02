@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 
+const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/admin";
 const connectToDb = async () => {
   console.log("Connecting to mongo");
-  await mongoose.connect("mongodb://127.0.0.1/admin");
+  await mongoose.connect(dbUrl);
   console.log("Connected to mongo");
 };
 
