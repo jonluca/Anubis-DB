@@ -119,3 +119,7 @@ fabric.properties
 
 db/
 dist/
+
+.yarn/*.gz
+
+.DS_Store

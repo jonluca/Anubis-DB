@@ -25,7 +25,7 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "skipLibCheck": true,
-    "target": "ES2020"
+    "target": "ESNext"
   },
   "include": ["src/**/*", "*"],
   "exclude": ["node_modules"]

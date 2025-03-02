@@ -9,11 +9,11 @@ import {
 
 const router = express.Router();
 
-router.get("/", (req, res, next) => {
+router.get("/", (req, res) => {
   res.render("index");
 });
 
-router.get("/subdomains/:domain", async ({ params }, res, next) => {
+router.get("/subdomains/:domain", async ({ params }, res) => {
   const domainParam = params.domain;
   const domain = cleanDomain(domainParam);
 
@@ -37,11 +37,11 @@ router.get("/subdomains/:domain", async ({ params }, res, next) => {
     res.status(200);
     const cleanedSubdomains = getCleanedSubdomains(docs.validSubdomains || []);
     const response = cleanedSubdomains.filter((newSub) =>
-      newSub.endsWith(`.${domain}`)
+      newSub.endsWith(`.${domain}`),
     );
     res.send(response);
     res.end();
-  } catch (err) {
+  } catch {
     console.log(`Error finding domain for post: ${domain}`);
     res.status(500);
     res.end();
@@ -55,7 +55,7 @@ router.post("/subdomains/:domain", async ({ body, params }, res) => {
   if (typeof subdomains != "object") {
     try {
       subdomains = JSON.parse(subdomains);
-    } catch (e) {
+    } catch {
       console.log(`Error parsing JSON for ${domainParam}`);
       res.status(500);
       res.end();
@@ -72,7 +72,7 @@ router.post("/subdomains/:domain", async ({ body, params }, res) => {
   }
 
   const validSubdomains = getCleanedSubdomains(subdomains).filter((newSub) =>
-    newSub.endsWith(`.${domain}`)
+    newSub.endsWith(`.${domain}`),
   );
 
   try {
@@ -95,7 +95,7 @@ router.post("/subdomains/:domain", async ({ body, params }, res) => {
         });
         res.status(200);
         res.end();
-      } catch (err) {
+      } catch {
         console.log(`Error creating ${domain}`);
         res.status(500);
         res.end();
@@ -115,7 +115,7 @@ router.post("/subdomains/:domain", async ({ body, params }, res) => {
           validSubdomains: savedDoc.validSubdomains,
         });
         res.end();
-      } catch (err) {
+      } catch {
         console.log(`Error appending to ${domain}`);
         res.status(500);
         res.end();

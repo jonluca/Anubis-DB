@@ -32,7 +32,7 @@ export const cleanDomain = (domain: string) => {
   try {
     const host = new URL(`https://${cleanedDomain}`);
     return (host.hostname || "").trim();
-  } catch (e) {
+  } catch {
     console.log(`Invalid domain: ${cleanedDomain}`);
   }
 
@@ -47,7 +47,7 @@ export const getCleanedSubdomains = (subdomains: string[]): string[] => {
           return newSub;
         }
         return null;
-      })
+      }),
     )
     .filter(Boolean);
   return uniq(cleaned);

@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import bodyParser from "body-parser";
 import index from "./routes";
-import rfs from "rotating-file-stream";
+import { createStream } from "rotating-file-stream";
 import RateLimit from "express-rate-limit";
 import morgan from "morgan";
 import compression from "compression";
@@ -15,13 +15,13 @@ const __dirname = dirname(__filename);
 
 const limiter = RateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 2000, // limit each IP to X requests per windowMs
+  limit: 2000, // limit each IP to X requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
 // Logging
-const accessLogStream = rfs.createStream("access.log", {
+const accessLogStream = createStream("access.log", {
   size: "1G",
   compress: "gzip",
   path: path.join(__dirname, "./logs/"),
@@ -38,8 +38,8 @@ app.use(
     ':remote-addr :remote-user [:date[iso]] ":method :url" :status :res[content-length]',
     {
       stream: accessLogStream,
-    }
-  )
+    },
+  ),
 );
 
 //  apply to all requests
@@ -55,30 +55,15 @@ app.use(
     extended: false,
     limit: "50mb",
     parameterLimit: 50000,
-  })
+  }),
 );
 app.use(express.static(path.join(__dirname, "public")));
 app.use("/", index);
+app.use("/anubis/", index);
 
-class NotFoundError extends Error {
-  status = 404;
-  constructor(props) {
-    super(props);
-  }
-}
-
-app.use((req, res, next) => {
-  const err = new NotFoundError("Not Found");
+app.use((req, res) => {
   res.status(404);
-  next(err);
-});
-
-app.use((err, req, res, next) => {
-  // set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get("env") === "development" ? err : {};
-  // render the error page
-  res.status(err.status || 500);
   res.render("error");
 });
+
 export default app;
