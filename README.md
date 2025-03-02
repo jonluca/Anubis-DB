@@ -8,27 +8,31 @@ This project came about due to a lack of free and open APIs for subdomain enumer
 
 ## Usage
 
-There is only one endpoint - `https://jonlu.ca/anubis/subdomains/:domain`, where `:domain` is the domain.
+There is only one endpoint - `https://anubisdb.com/anubis/subdomains/:domain`, where `:domain` is the domain.
 
-| Method | Endpoint                                         | Parameters                                                |
-| ------ | ------------------------------------------------ | --------------------------------------------------------- |
-| GET    | `https://jonlu.ca/anubis/subdomains/` + `domain` | `domain`: Valid domain (e.g. google.com, reddit.com, etc) |
-| POST   | `https://jonlu.ca/anubis/subdomains/` + `domain` | `subdomains`: Array of submitted subdomains               |
+| Method | Endpoint                                             | Parameters                                                |
+| ------ | ---------------------------------------------------- | --------------------------------------------------------- |
+| GET    | `https://anubisdb.com/anubis/subdomains/` + `domain` | `domain`: Valid domain (e.g. google.com, reddit.com, etc) |
+| POST   | `https://anubisdb.com/anubis/subdomains/` + `domain` | `subdomains`: Array of submitted subdomains               |
 
 A sample AJAX POST request looks like:
 
 ```js
-$.ajax({
-    method: 'POST',
-    url: "https://jonlu.ca/anubis/subdomains/reddit.com",
-    type: 'json',
-    data: {
-        "subdomains": ["reddit.com","www.reddit.com","blog.reddit.com"]
-    }
-    success: function(data, textStatus, jqXHR) {
-        //Handle data and status code here
-    }
-});
+fetch("https://anubisdb.com/subdomains/reddit.com", {
+  method: "GET",
+  headers: {
+    "Content-Type": "application/json",
+  },
+})
+  .then((response) => response.json())
+  .then((data) => {
+    // Handle data here
+    console.log(data);
+  })
+  .catch((error) => {
+    // Handle error here
+    console.error("Error:", error);
+  });
 ```
 
 ### Status Codes
@@ -42,7 +46,7 @@ $.ajax({
 
 ## Limits
 
-You're limited to 100 requests per 15 minute period.
+You're limited to 2000 requests per 15 minute period.
 
 There is also a 10,000 subdomain limit per domain.
 
