@@ -1,3 +1,4 @@
+import "dotenv/config";
 import mongoose from "mongoose";
 
 const dbUrl = process.env.MONGO_URL || "mongodb://127.0.0.1/admin";

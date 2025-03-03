@@ -28,7 +28,6 @@ const accessLogStream = createStream("access.log", {
 });
 
 const app = express();
-app.enable("trust proxy");
 app.disable("x-powered-by");
 app.use(compression());
 app.use(morgan("dev"));
@@ -53,8 +52,7 @@ app.use(bodyParser.json({ limit: "50mb" }));
 app.use(
   bodyParser.urlencoded({
     extended: false,
-    limit: "50mb",
-    parameterLimit: 50000,
+    limit: "1mb",
   }),
 );
 app.use(express.static(path.join(__dirname, "public")));

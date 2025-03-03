@@ -9,125 +9,150 @@ import {
 
 const router = express.Router();
 
+// Helper functions
+const sendErrorResponse = (res, statusCode, errorMessage) => {
+  console.error(errorMessage);
+  return res.status(statusCode).json({ error: errorMessage }).end();
+};
+
+/**
+ * Render index page
+ */
 router.get("/", (req, res) => {
   res.render("index");
 });
 
-router.get("/subdomains/:domain", async ({ params }, res) => {
-  const domainParam = params.domain;
-  const domain = cleanDomain(domainParam);
+/**
+ * Get subdomains for a specified domain
+ */
+router.get("/subdomains/:domain", async (req, res) => {
+  const domain = cleanDomain(req.params.domain);
 
   if (!verifyDomain(domain)) {
-    console.log(`Invalid domain: ${domain}`);
-    res.status(403);
-    res.send({ error: "Invalid domain!" });
-    res.end();
-    return;
+    return sendErrorResponse(res, 403, "Invalid domain");
   }
 
   try {
-    const docs = await Domains.findOne({ domain }).exec();
+    const domainDoc = await Domains.findOne({ domain }).exec();
+
     // Domain not found
-    if (!docs) {
-      res.status(300);
-      res.send([]);
-      res.end();
-      return;
+    if (!domainDoc) {
+      return res.status(204).json([]).end();
     }
-    res.status(200);
-    const cleanedSubdomains = getCleanedSubdomains(docs.validSubdomains || []);
-    const response = cleanedSubdomains.filter((newSub) =>
-      newSub.endsWith(`.${domain}`),
+
+    const cleanedSubdomains = getCleanedSubdomains(
+      domainDoc.validSubdomains || [],
     );
-    res.send(response);
-    res.end();
+    const response = cleanedSubdomains.filter((subdomain) =>
+      subdomain.endsWith(`.${domain}`),
+    );
+
+    return res.status(200).json(response).end();
   } catch {
-    console.log(`Error finding domain for post: ${domain}`);
-    res.status(500);
-    res.end();
-    return;
+    return sendErrorResponse(res, 500, `Error retrieving domain: ${domain}`);
   }
 });
 
-router.post("/subdomains/:domain", async ({ body, params }, res) => {
-  let subdomains = body.subdomains;
-  const domainParam = params.domain;
-  if (typeof subdomains != "object") {
+/**
+ * Add subdomains to a specified domain
+ */
+router.post("/subdomains/:domain", async (req, res) => {
+  const domain = cleanDomain(req.params.domain);
+  let subdomains = req.body.subdomains;
+
+  // Parse subdomains if it's a string
+  if (typeof subdomains === "string") {
     try {
       subdomains = JSON.parse(subdomains);
     } catch {
-      console.log(`Error parsing JSON for ${domainParam}`);
-      res.status(500);
-      res.end();
-      return;
+      return sendErrorResponse(res, 400, `Invalid JSON format for subdomains`);
     }
   }
-  const domain = cleanDomain(domainParam);
+
+  // Validate domain and subdomains
   if (!verifyDomain(domain) || !verifySubdomains(subdomains)) {
-    console.log(`Invalid domain: ${domain}`);
-    res.status(403);
-    res.send({ error: "Error with domains sent!" });
-    res.end();
-    return;
+    return sendErrorResponse(res, 403, "Invalid domain or subdomains");
   }
 
-  const validSubdomains = getCleanedSubdomains(subdomains).filter((newSub) =>
-    newSub.endsWith(`.${domain}`),
+  // Filter valid subdomains for this domain
+  const validSubdomains = getCleanedSubdomains(subdomains).filter((subdomain) =>
+    subdomain.endsWith(`.${domain}`),
   );
 
   try {
-    const doc = await Domains.findOne({
-      domain: { $regex: `.*${domain}` },
-    }).exec();
+    // Find domain or create new one
+    const domainDoc = await Domains.findOne({ domain }).exec();
 
-    if (!doc) {
-      console.log(`Domain ${domain} not found, creating domain`);
-      const newDomain = new Domains({
-        domain,
-        validSubdomains,
-      });
-      try {
-        const newDoc = await newDomain.save();
-        console.log(`Succesfully created ${domain}`);
-        res.send({
-          domain: newDoc.domain,
-          validSubdomains: newDoc.validSubdomains,
-        });
-        res.status(200);
-        res.end();
-      } catch {
-        console.log(`Error creating ${domain}`);
-        res.status(500);
-        res.end();
-        return;
-      }
+    if (!domainDoc) {
+      return await createNewDomain(domain, validSubdomains, res);
     } else {
-      doc.validSubdomains ??= [];
-      doc.validSubdomains.push(...validSubdomains);
-      doc.validSubdomains = getCleanedSubdomains(doc.validSubdomains);
-      console.log(`Appended new subdomains to ${domain}`);
-      doc.markModified("validSubdomains");
-      try {
-        const savedDoc = await doc.save();
-        res.status(200);
-        res.send({
-          domain: savedDoc.domain,
-          validSubdomains: savedDoc.validSubdomains,
-        });
-        res.end();
-      } catch {
-        console.log(`Error appending to ${domain}`);
-        res.status(500);
-        res.end();
-      }
+      return await updateExistingDomain(domainDoc, validSubdomains, res);
     }
-  } catch (err) {
-    console.error(err);
-    console.log(`Error finding domain for post: ${domain}`);
-    res.status(500);
-    res.end();
-    return;
+  } catch {
+    return sendErrorResponse(
+      res,
+      500,
+      `Server error processing domain: ${domain}`,
+    );
   }
 });
+
+/**
+ * Create a new domain with subdomains
+ */
+async function createNewDomain(domain, validSubdomains, res) {
+  try {
+    const newDomain = new Domains({
+      domain,
+      validSubdomains,
+    });
+
+    const newDoc = await newDomain.save();
+    console.log(`Successfully created domain: ${domain}`);
+
+    return res
+      .status(201)
+      .json({
+        domain: newDoc.domain,
+        validSubdomains: newDoc.validSubdomains,
+      })
+      .end();
+  } catch {
+    return sendErrorResponse(res, 500, `Error creating domain: ${domain}`);
+  }
+}
+
+/**
+ * Update an existing domain with new subdomains
+ */
+async function updateExistingDomain(domainDoc, validSubdomains, res) {
+  try {
+    // Ensure validSubdomains exists
+    domainDoc.validSubdomains = domainDoc.validSubdomains || [];
+
+    // Add new subdomains and remove duplicates
+    domainDoc.validSubdomains.push(...validSubdomains);
+    domainDoc.validSubdomains = getCleanedSubdomains(domainDoc.validSubdomains);
+
+    domainDoc.markModified("validSubdomains");
+    const savedDoc = await domainDoc.save();
+
+    console.log(`Updated subdomains for domain: ${savedDoc.domain}`);
+
+    return res
+      .status(200)
+      .json({
+        domain: savedDoc.domain,
+        validSubdomains: savedDoc.validSubdomains,
+      })
+      .end();
+  } catch {
+    return sendErrorResponse(
+      res,
+      500,
+      `Error updating domain: ${domainDoc.domain}`,
+    );
+  }
+}
 
 export default router;
