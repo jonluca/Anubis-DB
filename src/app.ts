@@ -63,7 +63,7 @@ app.use("/anubis/", index);
 
 app.use((req, res) => {
   res.status(404);
-  res.render("error");
+  res.send("404").end();
 });
 
 export default app;
