@@ -31,7 +31,7 @@ const app = express();
 app.disable("x-powered-by");
 app.use(compression());
 app.use(morgan("dev"));
-
+app.set("trust proxy", 1); // trust first proxy
 app.use(
   morgan(
     ':remote-addr :remote-user [:date[iso]] ":method :url" :status :res[content-length]',
