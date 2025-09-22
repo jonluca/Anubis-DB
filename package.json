@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "yarn tsx src/start.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migrate:mongo": "yarn tsx scripts/migrate-mongo-to-postgres.ts",
+    "migrate:mongo:dry": "DRY_RUN=true yarn tsx scripts/migrate-mongo-to-postgres.ts"
   },
   "dependencies": {
     "body-parser": "2.2.0",
@@ -15,6 +17,7 @@
     "express-rate-limit": "8.1.0",
     "is-valid-domain": "^0.1.6",
     "lodash-es": "^4.17.21",
+    "mongodb": "^6.20.0",
     "morgan": "1.10.1",
     "pg": "^8.16.3",
     "prettier": "^3.6.2",

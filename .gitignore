@@ -123,3 +123,4 @@ dist/
 .yarn/*.gz
 
 .DS_Store
+dump
