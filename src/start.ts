@@ -5,6 +5,7 @@
  */
 import app from "./app";
 import connectToDb from "./models/db";
+import runMigrations from "./models/migrate";
 import http from "http";
 
 /**
@@ -73,8 +74,14 @@ app.set("port", port);
 /**
  * Listen on provided port, on all network interfaces.
  */
-connectToDb().then(() => {
-  server.listen(port);
-  server.on("error", onError);
-  server.on("listening", onListening);
-});
+connectToDb()
+  .then(() => runMigrations())
+  .then(() => {
+    server.listen(port);
+    server.on("error", onError);
+    server.on("listening", onListening);
+  })
+  .catch(err => {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  });

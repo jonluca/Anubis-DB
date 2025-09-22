@@ -23,8 +23,8 @@ export const cleanDomain = (domain: string) => {
     return "";
   }
   const cleanedDomain = (domain || "")
-    .replace("https://", "")
-    .replace("http://", "")
+    .replaceAll("https://", "")
+    .replaceAll("http://", "")
     .replace(/^www\./, "")
     .replace(/^\*\./, "")
     .toLowerCase()
