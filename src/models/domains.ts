@@ -33,24 +33,25 @@ class DomainsModel {
     subdomains: string[],
   ): Promise<DomainResult> {
     if (subdomains.length === 0) {
-      // If no subdomains to add, just get existing ones
-      const existingSubdomains = await this.getSubdomains(db, domain);
       return {
         domain,
-        subdomains: existingSubdomains,
+        acceptedSubdomainCount: 0,
+        insertedSubdomainCount: 0,
         created: false,
       };
     }
 
     const domainRecord = await this.upsertDomain(db, domain);
-    await this.insertSubdomains(db, domainRecord.id, subdomains);
-
-    // Get all subdomains for this domain
-    const allSubdomains = await this.getSubdomains(db, domain);
+    const insertedSubdomainCount = await this.insertSubdomains(
+      db,
+      domainRecord.id,
+      subdomains,
+    );
 
     return {
       domain,
-      subdomains: allSubdomains,
+      acceptedSubdomainCount: subdomains.length,
+      insertedSubdomainCount,
       created: domainRecord.created,
     };
   }
@@ -99,19 +100,21 @@ class DomainsModel {
     db: D1Database,
     domainId: number,
     subdomains: string[],
-  ) {
+  ): Promise<number> {
     const prefix =
       "INSERT OR IGNORE INTO subdomains (domain_id, subdomain) VALUES ";
     const maxStatementBytes = 90_000;
     let values: string[] = [];
     let statementBytes = prefix.length + 1;
+    let insertedCount = 0;
 
     const flush = async () => {
       if (values.length === 0) {
         return;
       }
 
-      await db.prepare(`${prefix}${values.join(",")}`).run();
+      const result = await db.prepare(`${prefix}${values.join(",")}`).run();
+      insertedCount += result.meta.changes;
       values = [];
       statementBytes = prefix.length + 1;
     };
@@ -129,6 +132,7 @@ class DomainsModel {
     }
 
     await flush();
+    return insertedCount;
   }
 }
 

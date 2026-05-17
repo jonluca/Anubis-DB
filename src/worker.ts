@@ -106,7 +106,9 @@ const handlePostSubdomains = async (
     return json(
       {
         domain: result.domain,
-        validSubdomains: result.subdomains,
+        created: result.created,
+        acceptedSubdomainCount: result.acceptedSubdomainCount,
+        insertedSubdomainCount: result.insertedSubdomainCount,
       },
       { status: statusCode },
     );

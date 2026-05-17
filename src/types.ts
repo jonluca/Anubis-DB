@@ -4,6 +4,7 @@ export interface Env {
 
 export interface DomainResult {
   domain: string;
-  subdomains: string[];
+  acceptedSubdomainCount: number;
+  insertedSubdomainCount: number;
   created: boolean;
 }

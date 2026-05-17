@@ -15,7 +15,11 @@ There is only one endpoint - `https://anubisdb.com/anubis/subdomains/:domain`, w
 | GET    | `https://anubisdb.com/anubis/subdomains/` + `domain` | `domain`: Valid domain (e.g. google.com, reddit.com, etc) |
 | POST   | `https://anubisdb.com/anubis/subdomains/` + `domain` | `subdomains`: Array of submitted subdomains               |
 
-A sample AJAX POST request looks like:
+GET returns the full list of known subdomains for the domain. POST stores valid
+submitted subdomains and returns counts only; it does not return the full stored
+subdomain list. Use GET after POST if you need the current full list.
+
+A sample AJAX GET request looks like:
 
 ```js
 fetch("https://anubisdb.com/subdomains/reddit.com", {
@@ -31,6 +35,33 @@ fetch("https://anubisdb.com/subdomains/reddit.com", {
   })
   .catch((error) => {
     // Handle error here
+    console.error("Error:", error);
+  });
+```
+
+A sample AJAX POST request looks like:
+
+```js
+fetch("https://anubisdb.com/subdomains/reddit.com", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    subdomains: ["www.reddit.com", "old.reddit.com"],
+  }),
+})
+  .then((response) => response.json())
+  .then((data) => {
+    // {
+    //   domain: "reddit.com",
+    //   created: false,
+    //   acceptedSubdomainCount: 2,
+    //   insertedSubdomainCount: 1
+    // }
+    console.log(data);
+  })
+  .catch((error) => {
     console.error("Error:", error);
   });
 ```
