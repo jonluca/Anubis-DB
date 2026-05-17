@@ -73,11 +73,13 @@ fetch("https://anubisdb.com/subdomains/reddit.com", {
 | 200    | Success                                          |
 | 300    | Domain did/does not exist in database            |
 | 403    | Invalid domain or subdomains                     |
+| 429    | Rate limit exceeded                              |
 | 500    | Server error saving or retrieving new subdomains |
 
 ## Limits
 
-You're limited to 2000 requests per 15 minute period.
+You're limited to 60 requests per 10 seconds per source IP. This is enforced at
+Cloudflare's edge before requests reach the Worker.
 
 There is also a 10,000 subdomain limit per domain.
 
