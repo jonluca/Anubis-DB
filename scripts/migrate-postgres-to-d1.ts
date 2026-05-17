@@ -159,7 +159,6 @@ async function getCounts() {
 
 async function writeResetFile() {
   const resetSql = `PRAGMA defer_foreign_keys = true;
-DELETE FROM rate_limits;
 DELETE FROM subdomains;
 DELETE FROM domains;
 DELETE FROM sqlite_sequence WHERE name IN ('domains', 'subdomains');

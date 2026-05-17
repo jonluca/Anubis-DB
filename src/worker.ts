@@ -7,9 +7,6 @@ import {
   verifySubdomains,
 } from "./utils/domainUtils";
 
-const RATE_LIMIT = 2000;
-const RATE_LIMIT_WINDOW_SECONDS = 15 * 60;
-
 const homePage = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,11 +22,6 @@ const homePage = `<!DOCTYPE html>
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const rateLimitResponse = await checkRateLimit(request, env);
-    if (rateLimitResponse) {
-      return rateLimitResponse;
-    }
-
     const url = new URL(request.url);
     const pathname = stripAnubisPrefix(url.pathname);
 
@@ -122,50 +114,6 @@ const handlePostSubdomains = async (
     console.error("Error processing domain:", error);
     return sendErrorResponse(500, `Server error processing domain: ${domain}`);
   }
-};
-
-const checkRateLimit = async (request: Request, env: Env) => {
-  const ip =
-    request.headers.get("CF-Connecting-IP") ||
-    request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
-    "unknown";
-  const now = Math.floor(Date.now() / 1000);
-  const windowStart = now - (now % RATE_LIMIT_WINDOW_SECONDS);
-  const resetAt = windowStart + RATE_LIMIT_WINDOW_SECONDS;
-
-  const record = await env.DB.prepare(
-    `
-      INSERT INTO rate_limits (key, count, window_start)
-      VALUES (?, 1, ?)
-      ON CONFLICT(key) DO UPDATE SET
-        count = CASE
-          WHEN rate_limits.window_start < excluded.window_start THEN 1
-          ELSE rate_limits.count + 1
-        END,
-        window_start = CASE
-          WHEN rate_limits.window_start < excluded.window_start THEN excluded.window_start
-          ELSE rate_limits.window_start
-        END
-      RETURNING count, window_start
-    `,
-  )
-    .bind(ip, windowStart)
-    .first<{ count: number; window_start: number }>();
-
-  const count = record?.count ?? 1;
-  const remaining = Math.max(RATE_LIMIT - count, 0);
-  const headers = new Headers({
-    "RateLimit-Limit": RATE_LIMIT.toString(),
-    "RateLimit-Remaining": remaining.toString(),
-    "RateLimit-Reset": resetAt.toString(),
-  });
-
-  if (count > RATE_LIMIT) {
-    headers.set("Retry-After", Math.max(resetAt - now, 0).toString());
-    return json({ error: "Too many requests" }, { status: 429, headers });
-  }
-
-  return null;
 };
 
 const parseBody = async (request: Request) => {
