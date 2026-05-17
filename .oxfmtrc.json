@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    ".claude/**",
+    ".wrangler/**",
+    ".yarn/**",
+    "coverage/**",
+    "db/**",
+    "dist/**",
+    "dump/**",
+    "node_modules/**",
+    "src/logs/**"
+  ],
+  "printWidth": 80,
+  "semi": true,
+  "singleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "all"
+}

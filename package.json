@@ -7,30 +7,28 @@
     "start": "yarn dev",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint .",
     "typecheck": "tsc --noEmit",
-    "db:migrate:local": "wrangler d1 migrations apply anubis-db --local && wrangler d1 migrations apply anubis-db-writes --local",
-    "db:migrate:remote": "wrangler d1 migrations apply anubis-db --remote && wrangler d1 migrations apply anubis-db-writes --remote",
-    "db:info": "wrangler d1 info anubis-db && wrangler d1 info anubis-db-writes",
+    "db:migrate:local": "wrangler d1 migrations apply anubis-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply anubis-db --remote",
+    "db:info": "wrangler d1 info anubis-db",
     "migrate:postgres": "yarn tsx scripts/migrate-postgres-to-d1.ts --apply"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
     "pg": "^8.20.0"
   },
-  "packageManager": "yarn@4.14.1",
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260517.1",
-    "@eslint/compat": "^2.1.0",
-    "@eslint/js": "^10.0.1",
     "@types/node": "^25.8.0",
     "@types/pg": "^8.20.0",
-    "eslint": "^10.4.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-unused-imports": "^4.4.1",
-    "prettier": "^3.8.3",
+    "oxfmt": "^0.50.0",
+    "oxlint": "^1.65.0",
     "tsx": "^4.22.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.3",
     "wrangler": "^4.92.0"
-  }
+  },
+  "packageManager": "yarn@4.14.1"
 }

@@ -62,11 +62,7 @@ const handleGetSubdomains = async (env: Env, domain: string) => {
   }
 
   try {
-    const subdomains = await Domains.getSubdomains(
-      env.DB,
-      env.WRITES_DB,
-      domain,
-    );
+    const subdomains = await Domains.getSubdomains(env.DB, domain);
     return json(subdomains);
   } catch (error) {
     console.error("Error fetching subdomains:", error);
@@ -102,7 +98,6 @@ const handlePostSubdomains = async (
     );
     const result = await Domains.addSubdomainsToDomain(
       env.DB,
-      env.WRITES_DB,
       domain,
       validSubdomainsForDomain,
     );
@@ -138,7 +133,7 @@ const checkRateLimit = async (request: Request, env: Env) => {
   const windowStart = now - (now % RATE_LIMIT_WINDOW_SECONDS);
   const resetAt = windowStart + RATE_LIMIT_WINDOW_SECONDS;
 
-  const record = await env.WRITES_DB.prepare(
+  const record = await env.DB.prepare(
     `
       INSERT INTO rate_limits (key, count, window_start)
       VALUES (?, 1, ?)

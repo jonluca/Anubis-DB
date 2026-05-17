@@ -52,9 +52,7 @@ There is also a 10,000 subdomain limit per domain.
 
 ## Cloudflare Workers and D1
 
-This service runs as a Cloudflare Worker backed by D1. The imported source data
-lives in `anubis-db`; runtime writes and rate-limit counters live in
-`anubis-db-writes` so the large imported database can stay read-only.
+This service runs as a Cloudflare Worker backed by the `anubis-db` D1 database.
 
 Useful commands:
 

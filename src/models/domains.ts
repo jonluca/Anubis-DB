@@ -12,11 +12,7 @@ class DomainsModel {
   /**
    * Get all subdomains for a domain
    */
-  async getSubdomains(
-    db: D1Database,
-    writesDb: D1Database,
-    domain: string,
-  ): Promise<string[]> {
+  async getSubdomains(db: D1Database, domain: string): Promise<string[]> {
     const query = `
       SELECT s.subdomain
       FROM subdomains s
@@ -24,17 +20,8 @@ class DomainsModel {
       WHERE d.domain = ?
     `;
 
-    const [baseResult, writeResult] = await Promise.all([
-      db.prepare(query).bind(domain).all<SubdomainRecord>(),
-      writesDb.prepare(query).bind(domain).all<SubdomainRecord>(),
-    ]);
-    return [
-      ...new Set(
-        [...(baseResult.results || []), ...(writeResult.results || [])].map(
-          (row) => row.subdomain,
-        ),
-      ),
-    ];
+    const result = await db.prepare(query).bind(domain).all<SubdomainRecord>();
+    return (result.results || []).map((row) => row.subdomain);
   }
 
   /**
@@ -42,13 +29,12 @@ class DomainsModel {
    */
   async addSubdomainsToDomain(
     db: D1Database,
-    writesDb: D1Database,
     domain: string,
     subdomains: string[],
   ): Promise<DomainResult> {
     if (subdomains.length === 0) {
       // If no subdomains to add, just get existing ones
-      const existingSubdomains = await this.getSubdomains(db, writesDb, domain);
+      const existingSubdomains = await this.getSubdomains(db, domain);
       return {
         domain,
         subdomains: existingSubdomains,
@@ -56,27 +42,17 @@ class DomainsModel {
       };
     }
 
-    const baseDomainExists = await this.domainExists(db, domain);
-    const domainRecord = await this.upsertDomain(writesDb, domain);
-    await this.insertSubdomains(writesDb, domainRecord.id, subdomains);
+    const domainRecord = await this.upsertDomain(db, domain);
+    await this.insertSubdomains(db, domainRecord.id, subdomains);
 
     // Get all subdomains for this domain
-    const allSubdomains = await this.getSubdomains(db, writesDb, domain);
+    const allSubdomains = await this.getSubdomains(db, domain);
 
     return {
       domain,
       subdomains: allSubdomains,
-      created: !baseDomainExists && domainRecord.created,
+      created: domainRecord.created,
     };
-  }
-
-  private async domainExists(db: D1Database, domain: string) {
-    const record = await db
-      .prepare("SELECT id FROM domains WHERE domain = ?")
-      .bind(domain)
-      .first<DomainRecord>();
-
-    return Boolean(record);
   }
 
   private async upsertDomain(

@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "env": {
+    "builtin": true,
+    "node": true,
+    "worker": true
+  },
+  "ignorePatterns": [
+    ".claude/**",
+    ".wrangler/**",
+    ".yarn/**",
+    "coverage/**",
+    "db/**",
+    "dist/**",
+    "dump/**",
+    "node_modules/**",
+    "src/logs/**"
+  ],
+  "rules": {
+    "curly": "error"
+  }
+}
