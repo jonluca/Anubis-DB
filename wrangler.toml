@@ -6,6 +6,21 @@ routes = [
   { pattern = "www.anubisdb.com/*", zone_name = "anubisdb.com" },
 ]
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
 [[d1_databases]]
 binding = "DB"
 database_name = "anubis-db"
