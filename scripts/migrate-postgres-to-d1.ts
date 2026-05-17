@@ -121,7 +121,7 @@ async function main() {
   try {
     await exportDomains(writer);
     await exportSubdomains(writer);
-    await writeDenormalizedSubdomainsBackfill(writer);
+    await writeDenormalizedSubdomainsBackfillAndCleanup(writer);
   } finally {
     await writer.close();
   }
@@ -160,6 +160,14 @@ async function getCounts() {
 
 async function writeResetFile() {
   const resetSql = `PRAGMA defer_foreign_keys = true;
+CREATE TABLE IF NOT EXISTS subdomains (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  domain_id INTEGER NOT NULL REFERENCES domains(id) ON DELETE CASCADE,
+  subdomain TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(domain_id, subdomain)
+);
+CREATE INDEX IF NOT EXISTS idx_subdomains_domain_id ON subdomains(domain_id);
 DELETE FROM subdomains;
 DELETE FROM domains;
 DELETE FROM sqlite_sequence WHERE name IN ('domains', 'subdomains');
@@ -251,7 +259,9 @@ async function exportSubdomains(writer: SqlChunkWriter) {
   process.stdout.write("\n");
 }
 
-async function writeDenormalizedSubdomainsBackfill(writer: SqlChunkWriter) {
+async function writeDenormalizedSubdomainsBackfillAndCleanup(
+  writer: SqlChunkWriter,
+) {
   console.log("Writing denormalized subdomain backfill...");
 
   await writer.writeStatement(`UPDATE domains
@@ -263,6 +273,7 @@ SET subdomains_json = COALESCE(
   ),
   '[]'
 );
+DROP TABLE IF EXISTS subdomains;
 `);
 }
 

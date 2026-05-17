@@ -6,6 +6,7 @@ interface SubdomainRecord {
 
 interface DomainRecord {
   id: number;
+  subdomains_json: string | null;
 }
 
 interface DomainSubdomainsRecord {
@@ -31,6 +32,8 @@ class DomainsModel {
       if (subdomains) {
         return subdomains;
       }
+
+      throw new Error(`Invalid subdomains JSON for domain: ${domain}`);
     } catch (error) {
       if (!isMissingSubdomainsJsonColumnError(error)) {
         throw error;
@@ -73,14 +76,12 @@ class DomainsModel {
     }
 
     const domainRecord = await this.upsertDomain(db, domain);
-    const insertedSubdomainCount = await this.insertSubdomains(
+    const insertedSubdomainCount = await this.mergeSubdomainsJson(
       db,
       domainRecord.id,
+      domainRecord.subdomains_json,
       subdomains,
     );
-    if (insertedSubdomainCount > 0 || domainRecord.created) {
-      await this.refreshSubdomainsJson(db, domainRecord.id);
-    }
 
     return {
       domain,
@@ -95,7 +96,7 @@ class DomainsModel {
     domain: string,
   ): Promise<DomainRecord & { created: boolean }> {
     const existing = await db
-      .prepare("SELECT id FROM domains WHERE domain = ?")
+      .prepare("SELECT id, subdomains_json FROM domains WHERE domain = ?")
       .bind(domain)
       .first<DomainRecord>();
 
@@ -115,11 +116,15 @@ class DomainsModel {
       .run();
 
     if (insertResult.meta.changes > 0) {
-      return { id: insertResult.meta.last_row_id as number, created: true };
+      return {
+        id: insertResult.meta.last_row_id as number,
+        subdomains_json: "[]",
+        created: true,
+      };
     }
 
     const insertedByAnotherRequest = await db
-      .prepare("SELECT id FROM domains WHERE domain = ?")
+      .prepare("SELECT id, subdomains_json FROM domains WHERE domain = ?")
       .bind(domain)
       .first<DomainRecord>();
 
@@ -130,71 +135,68 @@ class DomainsModel {
     return { ...insertedByAnotherRequest, created: false };
   }
 
-  private async insertSubdomains(
+  private async mergeSubdomainsJson(
     db: D1Database,
     domainId: number,
+    initialSubdomainsJson: string | null,
     subdomains: string[],
   ): Promise<number> {
-    const prefix =
-      "INSERT OR IGNORE INTO subdomains (domain_id, subdomain) VALUES ";
-    const maxStatementBytes = 90_000;
-    let values: string[] = [];
-    let statementBytes = prefix.length + 1;
-    let insertedCount = 0;
+    let currentSubdomainsJson = initialSubdomainsJson || "[]";
 
-    const flush = async () => {
-      if (values.length === 0) {
-        return;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const currentSubdomains = parseSubdomainsJson(currentSubdomainsJson);
+      if (!currentSubdomains) {
+        throw new Error(`Invalid subdomains JSON for domain id: ${domainId}`);
       }
 
-      const result = await db.prepare(`${prefix}${values.join(",")}`).run();
-      insertedCount += result.meta.changes;
-      values = [];
-      statementBytes = prefix.length + 1;
-    };
+      const nextSubdomains = [...currentSubdomains];
+      const seenSubdomains = new Set(currentSubdomains);
 
-    for (const subdomain of subdomains) {
-      const value = `(${domainId},${sqlString(subdomain)})`;
-      const nextBytes = statementBytes + value.length + (values.length ? 1 : 0);
-
-      if (nextBytes > maxStatementBytes) {
-        await flush();
+      for (const subdomain of subdomains) {
+        if (!seenSubdomains.has(subdomain)) {
+          seenSubdomains.add(subdomain);
+          nextSubdomains.push(subdomain);
+        }
       }
 
-      values.push(value);
-      statementBytes += value.length + (values.length > 1 ? 1 : 0);
-    }
+      const insertedCount = nextSubdomains.length - currentSubdomains.length;
+      if (insertedCount === 0) {
+        return 0;
+      }
 
-    await flush();
-    return insertedCount;
-  }
+      const nextSubdomainsJson = JSON.stringify(nextSubdomains);
+      assertD1StringSize(nextSubdomainsJson);
 
-  private async refreshSubdomainsJson(db: D1Database, domainId: number) {
-    try {
-      await db
+      const result = await db
         .prepare(
           `
             UPDATE domains
-            SET subdomains_json = COALESCE(
-              (
-                SELECT json_group_array(subdomain)
-                FROM subdomains
-                WHERE domain_id = ?
-              ),
-              '[]'
-            )
-            WHERE id = ?
+            SET subdomains_json = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND subdomains_json = ?
           `,
         )
-        .bind(domainId, domainId)
+        .bind(nextSubdomainsJson, domainId, currentSubdomainsJson)
         .run();
-    } catch (error) {
-      if (isMissingSubdomainsJsonColumnError(error)) {
-        return;
+
+      if (result.meta.changes > 0) {
+        return insertedCount;
       }
 
-      throw error;
+      const latest = await db
+        .prepare("SELECT subdomains_json FROM domains WHERE id = ?")
+        .bind(domainId)
+        .first<DomainSubdomainsRecord>();
+
+      if (!latest) {
+        throw new Error(`Unable to find domain id: ${domainId}`);
+      }
+
+      currentSubdomainsJson = latest.subdomains_json || "[]";
     }
+
+    throw new Error(
+      `Unable to update subdomains JSON after concurrent changes for domain id: ${domainId}`,
+    );
   }
 }
 
@@ -220,7 +222,12 @@ const parseSubdomainsJson = (value: string | null): string[] | null => {
 const isMissingSubdomainsJsonColumnError = (error: unknown) =>
   String(error).includes("no such column: subdomains_json");
 
-const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
+const assertD1StringSize = (value: string) => {
+  const bytes = new TextEncoder().encode(value).length;
+  if (bytes > 2_000_000) {
+    throw new Error(`Subdomains JSON is too large for D1: ${bytes} bytes`);
+  }
+};
 
 // Export singleton instance
 const Domains = new DomainsModel();
