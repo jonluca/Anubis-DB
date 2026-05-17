@@ -11,6 +11,8 @@ export default tseslint.config({
     "client/.next/**/*",
     "public/js/*",
     ".yarn/js/*",
+    ".wrangler/**/*",
+    "node_modules/**/*",
   ],
 
   extends: [eslint.configs.recommended, ...tseslint.configs.recommended],

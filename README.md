@@ -50,6 +50,27 @@ You're limited to 2000 requests per 15 minute period.
 
 There is also a 10,000 subdomain limit per domain.
 
+## Cloudflare Workers and D1
+
+This service runs as a Cloudflare Worker backed by D1. The imported source data
+lives in `anubis-db`; runtime writes and rate-limit counters live in
+`anubis-db-writes` so the large imported database can stay read-only.
+
+Useful commands:
+
+```sh
+yarn dev
+yarn db:migrate:local
+yarn db:migrate:remote
+yarn migrate:postgres
+yarn deploy
+```
+
+`yarn migrate:postgres` reads the source PostgreSQL URL from `DB_URL` or
+`SOURCE_DB_URL`, generates D1-compatible SQL chunks in `.d1-import`, and applies
+them to the remote D1 database with Wrangler. Keep `CLOUDFLARE_API_TOKEN` in the
+shell environment when running remote D1 or deploy commands.
+
 ## Contributing
 
 The most straightforward way of contributing is just to use [Anubis](https://github.com/jonluca/anubis) and have it sends its results to AnubisDB.

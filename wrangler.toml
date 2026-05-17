@@ -1,0 +1,17 @@
+name = "anubis-db"
+main = "src/worker.ts"
+compatibility_date = "2026-05-17"
+routes = [
+  { pattern = "anubisdb.com/*", zone_name = "anubisdb.com" },
+  { pattern = "www.anubisdb.com/*", zone_name = "anubisdb.com" },
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "anubis-db"
+database_id = "450aad16-6f6d-4743-bd4b-2fe0b03b8eba"
+
+[[d1_databases]]
+binding = "WRITES_DB"
+database_name = "anubis-db-writes"
+database_id = "95cce0c0-c5ac-4d57-935d-cb332214477d"
