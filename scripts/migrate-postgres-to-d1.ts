@@ -121,6 +121,7 @@ async function main() {
   try {
     await exportDomains(writer);
     await exportSubdomains(writer);
+    await writeDenormalizedSubdomainsBackfill(writer);
   } finally {
     await writer.close();
   }
@@ -248,6 +249,21 @@ async function exportSubdomains(writer: SqlChunkWriter) {
   }
 
   process.stdout.write("\n");
+}
+
+async function writeDenormalizedSubdomainsBackfill(writer: SqlChunkWriter) {
+  console.log("Writing denormalized subdomain backfill...");
+
+  await writer.writeStatement(`UPDATE domains
+SET subdomains_json = COALESCE(
+  (
+    SELECT json_group_array(subdomain)
+    FROM subdomains
+    WHERE subdomains.domain_id = domains.id
+  ),
+  '[]'
+);
+`);
 }
 
 async function writeInsertStatements(

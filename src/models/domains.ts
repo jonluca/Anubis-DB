@@ -8,11 +8,42 @@ interface DomainRecord {
   id: number;
 }
 
+interface DomainSubdomainsRecord {
+  subdomains_json: string | null;
+}
+
 class DomainsModel {
   /**
    * Get all subdomains for a domain
    */
   async getSubdomains(db: D1Database, domain: string): Promise<string[]> {
+    try {
+      const record = await db
+        .prepare("SELECT subdomains_json FROM domains WHERE domain = ?")
+        .bind(domain)
+        .first<DomainSubdomainsRecord>();
+
+      if (!record) {
+        return [];
+      }
+
+      const subdomains = parseSubdomainsJson(record.subdomains_json);
+      if (subdomains) {
+        return subdomains;
+      }
+    } catch (error) {
+      if (!isMissingSubdomainsJsonColumnError(error)) {
+        throw error;
+      }
+    }
+
+    return this.getSubdomainsFromRows(db, domain);
+  }
+
+  private async getSubdomainsFromRows(
+    db: D1Database,
+    domain: string,
+  ): Promise<string[]> {
     const query = `
       SELECT s.subdomain
       FROM subdomains s
@@ -47,6 +78,9 @@ class DomainsModel {
       domainRecord.id,
       subdomains,
     );
+    if (insertedSubdomainCount > 0 || domainRecord.created) {
+      await this.refreshSubdomainsJson(db, domainRecord.id);
+    }
 
     return {
       domain,
@@ -134,7 +168,57 @@ class DomainsModel {
     await flush();
     return insertedCount;
   }
+
+  private async refreshSubdomainsJson(db: D1Database, domainId: number) {
+    try {
+      await db
+        .prepare(
+          `
+            UPDATE domains
+            SET subdomains_json = COALESCE(
+              (
+                SELECT json_group_array(subdomain)
+                FROM subdomains
+                WHERE domain_id = ?
+              ),
+              '[]'
+            )
+            WHERE id = ?
+          `,
+        )
+        .bind(domainId, domainId)
+        .run();
+    } catch (error) {
+      if (isMissingSubdomainsJsonColumnError(error)) {
+        return;
+      }
+
+      throw error;
+    }
+  }
 }
+
+const parseSubdomainsJson = (value: string | null): string[] | null => {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.filter(
+        (subdomain): subdomain is string => typeof subdomain === "string",
+      );
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
+const isMissingSubdomainsJsonColumnError = (error: unknown) =>
+  String(error).includes("no such column: subdomains_json");
 
 const sqlString = (value: string) => `'${value.replaceAll("'", "''")}'`;
 
