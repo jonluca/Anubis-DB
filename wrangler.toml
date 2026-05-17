@@ -14,7 +14,7 @@ head_sampling_rate = 1
 enabled = true
 head_sampling_rate = 1
 persist = true
-invocation_logs = true
+invocation_logs = false
 
 [observability.traces]
 enabled = false

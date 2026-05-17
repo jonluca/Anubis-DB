@@ -57,8 +57,7 @@ const handleGetSubdomains = async (env: Env, domain: string) => {
     const subdomains = await Domains.getSubdomains(env.DB, domain);
     return json(subdomains);
   } catch (error) {
-    console.error("Error fetching subdomains:", error);
-    return sendErrorResponse(500, `Error retrieving domain: ${domain}`);
+    return sendErrorResponse(500, `Error retrieving domain: ${domain}`, error);
   }
 };
 
@@ -104,12 +103,6 @@ const handlePostSubdomains = async (
     // Use 201 for new domain, 200 for existing
     const statusCode = result.created ? 201 : 200;
 
-    console.log(
-      result.created
-        ? `Created new domain: ${domain}`
-        : `Updated domain: ${domain}`,
-    );
-
     return json(
       {
         domain: result.domain,
@@ -120,8 +113,11 @@ const handlePostSubdomains = async (
       { status: statusCode },
     );
   } catch (error) {
-    console.error("Error processing domain:", error);
-    return sendErrorResponse(500, `Server error processing domain: ${domain}`);
+    return sendErrorResponse(
+      500,
+      `Server error processing domain: ${domain}`,
+      error,
+    );
   }
 };
 
@@ -162,11 +158,13 @@ const decodeDomainParam = (domainParam: string) => {
   }
 };
 
-const sendErrorResponse = (statusCode: number, errorMessage: string) => {
+const sendErrorResponse = (
+  statusCode: number,
+  errorMessage: string,
+  error?: unknown,
+) => {
   if (statusCode >= 500) {
-    console.error(errorMessage);
-  } else if (statusCode >= 400) {
-    console.warn(errorMessage);
+    console.error(errorMessage, error);
   }
 
   return json({ error: errorMessage }, { status: statusCode });

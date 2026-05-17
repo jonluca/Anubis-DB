@@ -6,19 +6,16 @@ export const verifyDomain = (domain: string) => {
   const normalized = domain.endsWith(".") ? domain.slice(0, -1) : domain;
 
   if (normalized.length > 253) {
-    console.log(`Domain ${domain} is invalid`);
     return false;
   }
 
   const labels = normalized.split(".");
   if (labels.length < 2 || labels.some((label) => label.length === 0)) {
-    console.log(`Domain ${domain} is invalid`);
     return false;
   }
 
   const tld = labels.at(-1);
   if (!tld || /^\d+$/.test(tld)) {
-    console.log(`Domain ${domain} is invalid`);
     return false;
   }
 
@@ -57,10 +54,8 @@ export const cleanDomain = (domain: string) => {
     const host = new URL(`https://${cleanedDomain}`);
     return (host.hostname || "").trim();
   } catch {
-    console.log(`Invalid domain: ${cleanedDomain}`);
+    return cleanedDomain;
   }
-
-  return cleanedDomain;
 };
 export const getCleanedSubdomains = (subdomains: string[]): string[] => {
   const cleaned = (subdomains || [])
