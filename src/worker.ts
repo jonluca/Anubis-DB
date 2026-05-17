@@ -20,15 +20,22 @@ const homePage = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const PUBLIC_CACHE_CONTROL = "public, max-age=300, s-maxage=300";
+const CACHE_TTL_SECONDS = 300;
+const PUBLIC_CACHE_CONTROL = `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}`;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(
+    request: Request,
+    env: Env,
+    ctx: ExecutionContext,
+  ): Promise<Response> {
     const url = new URL(request.url);
     const pathname = stripAnubisPrefix(url.pathname);
 
     if (request.method === "GET" && (pathname === "/" || pathname === "")) {
-      return html(homePage, withPublicCache());
+      return getCachedResponse(request, ctx, () =>
+        Promise.resolve(html(homePage, withPublicCache())),
+      );
     }
 
     const subdomainsMatch = pathname.match(/^\/subdomains\/([^/]+)\/?$/);
@@ -39,33 +46,45 @@ export default {
     const domain = cleanDomain(decodeDomainParam(subdomainsMatch[1]));
 
     if (request.method === "GET") {
-      return handleGetSubdomains(env, domain);
+      return handleGetSubdomains(request, env, ctx, domain);
     }
 
     if (request.method === "POST") {
-      return handlePostSubdomains(request, env, domain);
+      return handlePostSubdomains(request, env, ctx, domain);
     }
 
     return json({ error: "Method not allowed" }, { status: 405 });
   },
 };
 
-const handleGetSubdomains = async (env: Env, domain: string) => {
+const handleGetSubdomains = async (
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+  domain: string,
+) => {
   if (!verifyDomain(domain)) {
     return sendErrorResponse(403, "Invalid domain");
   }
 
-  try {
-    const subdomains = await Domains.getSubdomains(env.DB, domain);
-    return json(subdomains, withPublicCache());
-  } catch (error) {
-    return sendErrorResponse(500, `Error retrieving domain: ${domain}`, error);
-  }
+  return getCachedResponse(request, ctx, async () => {
+    try {
+      const subdomains = await Domains.getSubdomains(env.DB, domain);
+      return json(subdomains, withPublicCache());
+    } catch (error) {
+      return sendErrorResponse(
+        500,
+        `Error retrieving domain: ${domain}`,
+        error,
+      );
+    }
+  });
 };
 
 const handlePostSubdomains = async (
   request: Request,
   env: Env,
+  ctx: ExecutionContext,
   domain: string,
 ) => {
   let body: Record<string, unknown>;
@@ -104,6 +123,8 @@ const handlePostSubdomains = async (
 
     // Use 201 for new domain, 200 for existing
     const statusCode = result.created ? 201 : 200;
+
+    ctx.waitUntil(caches.default.delete(cacheKeyFor(request)));
 
     return json(
       {
@@ -189,6 +210,29 @@ const text = (body: string, init: ResponseInit = {}) =>
     ...init,
     headers: withContentType(init.headers, "text/plain; charset=utf-8"),
   });
+
+const getCachedResponse = async (
+  request: Request,
+  ctx: ExecutionContext,
+  createResponse: () => Promise<Response>,
+) => {
+  const cache = caches.default;
+  const cacheKey = cacheKeyFor(request);
+  const cachedResponse = await cache.match(cacheKey);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+
+  const response = await createResponse();
+  if (response.ok) {
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  }
+
+  return response;
+};
+
+const cacheKeyFor = (request: Request) =>
+  new Request(request.url, { method: "GET" });
 
 const withPublicCache = (init: ResponseInit = {}): ResponseInit => ({
   ...init,
