@@ -20,13 +20,15 @@ const homePage = `<!DOCTYPE html>
 </body>
 </html>`;
 
+const PUBLIC_CACHE_CONTROL = "public, max-age=300, s-maxage=300";
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const pathname = stripAnubisPrefix(url.pathname);
 
     if (request.method === "GET" && (pathname === "/" || pathname === "")) {
-      return html(homePage);
+      return html(homePage, withPublicCache());
     }
 
     const subdomainsMatch = pathname.match(/^\/subdomains\/([^/]+)\/?$/);
@@ -55,7 +57,7 @@ const handleGetSubdomains = async (env: Env, domain: string) => {
 
   try {
     const subdomains = await Domains.getSubdomains(env.DB, domain);
-    return json(subdomains);
+    return json(subdomains, withPublicCache());
   } catch (error) {
     return sendErrorResponse(500, `Error retrieving domain: ${domain}`, error);
   }
@@ -187,6 +189,21 @@ const text = (body: string, init: ResponseInit = {}) =>
     ...init,
     headers: withContentType(init.headers, "text/plain; charset=utf-8"),
   });
+
+const withPublicCache = (init: ResponseInit = {}): ResponseInit => ({
+  ...init,
+  headers: withHeader(init.headers, "cache-control", PUBLIC_CACHE_CONTROL),
+});
+
+const withHeader = (
+  headers: HeadersInit | undefined,
+  name: string,
+  value: string,
+) => {
+  const nextHeaders = new Headers(headers);
+  nextHeaders.set(name, value);
+  return nextHeaders;
+};
 
 const withContentType = (
   headers: HeadersInit | undefined,
