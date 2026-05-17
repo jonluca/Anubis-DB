@@ -34,7 +34,7 @@ export default {
       return text("404", { status: 404 });
     }
 
-    const domain = cleanDomain(decodeURIComponent(subdomainsMatch[1]));
+    const domain = cleanDomain(decodeDomainParam(subdomainsMatch[1]));
 
     if (request.method === "GET") {
       return handleGetSubdomains(env, domain);
@@ -67,7 +67,14 @@ const handlePostSubdomains = async (
   env: Env,
   domain: string,
 ) => {
-  let subdomains = (await parseBody(request)).subdomains;
+  let body: Record<string, unknown>;
+  try {
+    body = await parseBody(request);
+  } catch {
+    return sendErrorResponse(400, "Invalid request body");
+  }
+
+  let subdomains = body.subdomains;
 
   // Parse subdomains if it's a string
   if (typeof subdomains === "string") {
@@ -118,7 +125,9 @@ const handlePostSubdomains = async (
   }
 };
 
-const parseBody = async (request: Request) => {
+const parseBody = async (
+  request: Request,
+): Promise<Record<string, unknown>> => {
   const contentType = request.headers.get("content-type") || "";
 
   if (contentType.includes("application/json")) {
@@ -145,8 +154,21 @@ const parseBody = async (request: Request) => {
 const stripAnubisPrefix = (pathname: string) =>
   pathname === "/anubis" ? "/" : pathname.replace(/^\/anubis(?=\/)/, "");
 
+const decodeDomainParam = (domainParam: string) => {
+  try {
+    return decodeURIComponent(domainParam);
+  } catch {
+    return "";
+  }
+};
+
 const sendErrorResponse = (statusCode: number, errorMessage: string) => {
-  console.error(errorMessage);
+  if (statusCode >= 500) {
+    console.error(errorMessage);
+  } else if (statusCode >= 400) {
+    console.warn(errorMessage);
+  }
+
   return json({ error: errorMessage }, { status: statusCode });
 };
 
