@@ -81,6 +81,9 @@ fetch("https://anubisdb.com/subdomains/reddit.com", {
 You're limited to 60 requests per 10 seconds per source IP. This is enforced at
 Cloudflare's edge before requests reach the Worker.
 
+IPs or prefixes found trying to bypass the rate limit by rotating addresses or
+otherwise evading enforcement may be challenged or blocked.
+
 There is also a 10,000 subdomain limit per domain.
 
 ## Cloudflare Workers and D1
