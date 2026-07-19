@@ -10,6 +10,7 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint .",
+    "test": "node --import tsx --test test/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply anubis-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply anubis-db --remote",

@@ -43,25 +43,42 @@ export const cleanDomain = (domain: string) => {
   if (!domain) {
     return "";
   }
-  const cleanedDomain = (domain || "")
-    .replaceAll("https://", "")
-    .replaceAll("http://", "")
+  const cleanedDomain = domain
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
     .replace(/^www\./, "")
     .replace(/^\*\./, "")
-    .toLowerCase()
-    .trim();
+    .replace(/\.$/, "");
   try {
     const host = new URL(`https://${cleanedDomain}`);
-    return (host.hostname || "").trim();
+    return (host.hostname || "").replace(/\.$/, "").trim();
   } catch {
     return cleanedDomain;
   }
 };
+
+const cleanSubdomain = (subdomain: string) => {
+  const cleanedSubdomain = subdomain
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^\*\./, "")
+    .replace(/\.$/, "");
+
+  try {
+    const host = new URL(`https://${cleanedSubdomain}`);
+    return (host.hostname || "").replace(/\.$/, "").trim();
+  } catch {
+    return cleanedSubdomain;
+  }
+};
+
 export const getCleanedSubdomains = (subdomains: string[]): string[] => {
   const cleaned = (subdomains || [])
     .flatMap((subdomain) =>
       subdomain.split(/,|<br>/).map((splitSub) => {
-        const newSub = cleanDomain(splitSub);
+        const newSub = cleanSubdomain(splitSub);
         if (verifyDomain(newSub)) {
           return newSub;
         }
