@@ -40,16 +40,24 @@ export const verifySubdomains = (subdomains: unknown): subdomains is string[] =>
   subdomains.every((subdomain) => typeof subdomain === "string");
 
 export const cleanDomain = (domain: string) => {
+  return cleanHostname(domain, true);
+};
+
+const cleanHostname = (domain: string, removeWww: boolean) => {
   if (!domain) {
     return "";
   }
-  const cleanedDomain = (domain || "")
-    .replaceAll("https://", "")
-    .replaceAll("http://", "")
-    .replace(/^www\./, "")
-    .replace(/^\*\./, "")
+
+  let cleanedDomain = domain
     .toLowerCase()
-    .trim();
+    .trim()
+    .replace(/^https?:\/\//, "")
+    .replace(/^\*\./, "");
+
+  if (removeWww) {
+    cleanedDomain = cleanedDomain.replace(/^www\./, "");
+  }
+
   try {
     const host = new URL(`https://${cleanedDomain}`);
     return (host.hostname || "").trim();
@@ -61,7 +69,7 @@ export const getCleanedSubdomains = (subdomains: string[]): string[] => {
   const cleaned = (subdomains || [])
     .flatMap((subdomain) =>
       subdomain.split(/,|<br>/).map((splitSub) => {
-        const newSub = cleanDomain(splitSub);
+        const newSub = cleanHostname(splitSub, false);
         if (verifyDomain(newSub)) {
           return newSub;
         }

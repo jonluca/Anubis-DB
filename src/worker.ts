@@ -729,8 +729,21 @@ const getCachedResponse = async (
   return response;
 };
 
-const cacheKeyFor = (request: Request) =>
-  new Request(request.url, { method: "GET" });
+export const cacheKeyFor = (request: Request) => {
+  const url = new URL(request.url);
+  const pathname = stripAnubisPrefix(url.pathname);
+  const subdomainsMatch = pathname.match(/^\/subdomains\/([^/]+)\/?$/);
+
+  if (subdomainsMatch) {
+    const domain = cleanDomain(decodeDomainParam(subdomainsMatch[1]));
+    url.pathname = `/subdomains/${encodeURIComponent(domain)}`;
+    url.search = "";
+  } else if (pathname === "/" || pathname === "") {
+    url.pathname = "/";
+  }
+
+  return new Request(url, { method: "GET" });
+};
 
 const withPublicCache = (init: ResponseInit = {}): ResponseInit => ({
   ...init,
