@@ -68,13 +68,14 @@ fetch("https://anubisdb.com/subdomains/reddit.com", {
 
 ### Status Codes
 
-| Status | Endpoint                                         |
-| ------ | ------------------------------------------------ |
-| 200    | Success                                          |
-| 300    | Domain did/does not exist in database            |
-| 403    | Invalid domain or subdomains                     |
-| 429    | Rate limit exceeded                              |
-| 500    | Server error saving or retrieving new subdomains |
+| Status | Endpoint                                          |
+| ------ | ------------------------------------------------- |
+| 200    | Success                                           |
+| 300    | Domain did/does not exist in database             |
+| 403    | Invalid domain or subdomains                      |
+| 413    | Submission exceeds input or domain storage limits |
+| 429    | Rate limit exceeded                               |
+| 500    | Server error saving or retrieving new subdomains  |
 
 ## Limits
 
@@ -84,7 +85,21 @@ Cloudflare's edge before requests reach the Worker.
 IPs or prefixes found trying to bypass the rate limit by rotating addresses or
 otherwise evading enforcement may be challenged or blocked.
 
-There is also a 10,000 subdomain limit per domain.
+There is also a 10,000 unique subdomain limit per domain and a 2,000,000-byte
+limit for its stored JSON array. Submissions that exceed either limit return
+413 without partially adding subdomains.
+
+POST bodies are limited to 3,000,000 bytes, including streamed requests. Each
+request may contain up to 10,000 array items and 10,000 values after splitting
+commas, line breaks, or HTML breaks. Empty, invalid, and duplicate values count
+toward these input limits. Each value may contain at most 2,048 characters;
+URL-encoded requests may contain at most 100 form fields. Split larger submissions
+into separate requests. Rejected submissions do not partially add data.
+
+Additions are merged atomically in D1, so concurrent submissions preserve each
+other's values. Empty or duplicate-only POSTs retain cached GET results. Concurrent
+GET cache misses share a read within each Worker isolate; the edge cache retains
+the existing five-minute lifetime.
 
 ## Cloudflare Workers and D1
 

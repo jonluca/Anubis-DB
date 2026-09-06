@@ -167,7 +167,6 @@ CREATE TABLE IF NOT EXISTS subdomains (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(domain_id, subdomain)
 );
-CREATE INDEX IF NOT EXISTS idx_subdomains_domain_id ON subdomains(domain_id);
 DELETE FROM subdomains;
 DELETE FROM domains;
 DELETE FROM sqlite_sequence WHERE name IN ('domains', 'subdomains');

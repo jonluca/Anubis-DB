@@ -1,4 +1,4 @@
-import Domains from "./models/domains";
+import Domains, { SubdomainLimitError } from "./models/domains";
 import type { Env } from "./types";
 import {
   cleanDomain,
@@ -6,6 +6,13 @@ import {
   verifyDomain,
   verifySubdomains,
 } from "./utils/domainUtils";
+
+import { InputLimitError, MAX_SUBDOMAIN_ITEMS } from "./utils/inputLimits";
+import { parseBody } from "./utils/requestBody";
+import {
+  getCachedResponse,
+  invalidateCachedResponse,
+} from "./utils/responseCache";
 
 const API_BASE_URL = "https://anubisdb.com/subdomains";
 const GITHUB_URL = "https://github.com/jonluca/Anubis-DB";
@@ -527,7 +534,7 @@ export default {
     const isHomePage = pathname === "/" || pathname === "";
 
     if (request.method === "GET" && isHomePage) {
-      return getCachedResponse(request, ctx, () =>
+      return getCachedResponse(cacheKeyFor(request), ctx, () =>
         Promise.resolve(html(homePage, withPublicCache())),
       );
     }
@@ -565,7 +572,7 @@ const handleGetSubdomains = async (
     return sendErrorResponse(403, "Invalid domain");
   }
 
-  return getCachedResponse(request, ctx, async () => {
+  return getCachedResponse(cacheKeyFor(request), ctx, async () => {
     try {
       const subdomains = await Domains.getSubdomains(env.DB, domain);
       return json(subdomains, withPublicCache());
@@ -585,10 +592,24 @@ const handlePostSubdomains = async (
   ctx: ExecutionContext,
   domain: string,
 ) => {
+  if (!verifyDomain(domain)) {
+    return sendErrorResponse(403, "Invalid domain or subdomains");
+  }
   let body: Record<string, unknown>;
   try {
-    body = await parseBody(request);
-  } catch {
+    const parsedBody = await parseBody(request);
+    if (
+      !parsedBody ||
+      typeof parsedBody !== "object" ||
+      Array.isArray(parsedBody)
+    ) {
+      return sendErrorResponse(400, "Invalid request body");
+    }
+    body = parsedBody as Record<string, unknown>;
+  } catch (error) {
+    if (error instanceof InputLimitError) {
+      return sendErrorResponse(413, error.message);
+    }
     return sendErrorResponse(400, "Invalid request body");
   }
 
@@ -604,7 +625,10 @@ const handlePostSubdomains = async (
   }
 
   // Basic validation
-  if (!verifyDomain(domain) || !verifySubdomains(subdomains)) {
+  if (Array.isArray(subdomains) && subdomains.length > MAX_SUBDOMAIN_ITEMS) {
+    return sendErrorResponse(413, "Too many submitted subdomain items");
+  }
+  if (!verifySubdomains(subdomains)) {
     return sendErrorResponse(403, "Invalid domain or subdomains");
   }
 
@@ -622,7 +646,9 @@ const handlePostSubdomains = async (
     // Use 201 for new domain, 200 for existing
     const statusCode = result.created ? 201 : 200;
 
-    ctx.waitUntil(caches.default.delete(cacheKeyFor(request)));
+    if (result.insertedSubdomainCount > 0) {
+      ctx.waitUntil(invalidateCachedResponse(cacheKeyFor(request)));
+    }
 
     return json(
       {
@@ -634,37 +660,17 @@ const handlePostSubdomains = async (
       { status: statusCode },
     );
   } catch (error) {
+    if (
+      error instanceof SubdomainLimitError ||
+      error instanceof InputLimitError
+    ) {
+      return sendErrorResponse(413, error.message);
+    }
     return sendErrorResponse(
       500,
       `Server error processing domain: ${domain}`,
       error,
     );
-  }
-};
-
-const parseBody = async (
-  request: Request,
-): Promise<Record<string, unknown>> => {
-  const contentType = request.headers.get("content-type") || "";
-
-  if (contentType.includes("application/json")) {
-    return (await request.json()) as Record<string, unknown>;
-  }
-
-  if (contentType.includes("application/x-www-form-urlencoded")) {
-    const formData = await request.formData();
-    return Object.fromEntries(formData.entries());
-  }
-
-  const textBody = await request.text();
-  if (!textBody) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(textBody) as Record<string, unknown>;
-  } catch {
-    return { subdomains: textBody };
   }
 };
 
@@ -708,26 +714,6 @@ const text = (body: string, init: ResponseInit = {}) =>
     ...init,
     headers: withContentType(init.headers, "text/plain; charset=utf-8"),
   });
-
-const getCachedResponse = async (
-  request: Request,
-  ctx: ExecutionContext,
-  createResponse: () => Promise<Response>,
-) => {
-  const cache = caches.default;
-  const cacheKey = cacheKeyFor(request);
-  const cachedResponse = await cache.match(cacheKey);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
-  const response = await createResponse();
-  if (response.ok) {
-    ctx.waitUntil(cache.put(cacheKey, response.clone()));
-  }
-
-  return response;
-};
 
 export const cacheKeyFor = (request: Request) => {
   const url = new URL(request.url);

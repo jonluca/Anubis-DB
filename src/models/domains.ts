@@ -4,13 +4,101 @@ interface SubdomainRecord {
   subdomain: string;
 }
 
-interface DomainRecord {
-  id: number;
+interface DomainSubdomainsRecord {
   subdomains_json: string | null;
 }
 
-interface DomainSubdomainsRecord {
-  subdomains_json: string | null;
+const MAX_SUBDOMAINS = 10_000;
+const MAX_SUBDOMAINS_JSON_BYTES = 2_000_000;
+
+interface MergeState {
+  created: number;
+  valid: number;
+  inserted_count: number;
+  exceeds_count_limit: number;
+}
+
+// IN builds an indexed input set once, avoiding a stored-array scan per input.
+// Materialize only scalar metadata and additions, keeping stored JSON scans bounded.
+const MERGE_INPUTS_SQL = `
+  WITH existing AS MATERIALIZED (
+    SELECT id, subdomains_json,
+      CASE WHEN json_valid(subdomains_json) AND instr(subdomains_json, char(0)) = 0
+        THEN json_type(subdomains_json) = 'array' ELSE 0 END AS is_array
+    FROM domains WHERE domain = ?1
+  ), stored_entries AS NOT MATERIALIZED (
+    SELECT value, type, CAST(key AS INTEGER) AS position
+    FROM json_each(COALESCE(
+      (SELECT CASE WHEN is_array THEN subdomains_json ELSE '[]' END FROM existing),
+      '[]'
+    ))
+  ), incoming AS NOT MATERIALIZED (
+    SELECT value, CAST(key AS INTEGER) AS position FROM json_each(?2)
+  ), stored_summary AS MATERIALIZED (
+    SELECT COUNT(*) AS stored_count,
+      COALESCE(MIN(type = 'text'), 1) AS valid,
+      json_group_array(DISTINCT value) FILTER (
+        WHERE type = 'text' AND value IN (SELECT value FROM incoming)
+      ) AS matches_json
+    FROM stored_entries
+  ), additions AS MATERIALIZED (
+    SELECT value, position FROM incoming WHERE value NOT IN (
+      SELECT value FROM json_each((SELECT matches_json FROM stored_summary))
+    )
+  ), merge_counts AS (
+    SELECT stored_count, valid,
+      json_array_length(?2) - json_array_length(matches_json) AS inserted_count
+    FROM stored_summary
+  ), merge_state AS MATERIALIZED (
+    SELECT
+      NOT EXISTS (SELECT 1 FROM existing) AS created,
+      NOT EXISTS (SELECT 1 FROM existing WHERE NOT is_array)
+        AND valid AS valid,
+      inserted_count,
+      CASE WHEN inserted_count = 0 OR stored_count + inserted_count <= ?3 THEN 0
+      ELSE (SELECT COUNT(DISTINCT value) FROM stored_entries)
+        + inserted_count > ?3 END AS exceeds_count_limit
+    FROM merge_counts
+  )
+`;
+
+const MERGE_SUBDOMAINS_SQL = `${MERGE_INPUTS_SQL}, candidate AS MATERIALIZED (
+  SELECT CASE WHEN (SELECT stored_count FROM stored_summary) > 0 THEN
+    substr(
+      rtrim((SELECT subdomains_json FROM existing), char(9) || char(10) || char(13) || ' '),
+      1,
+      length(rtrim((SELECT subdomains_json FROM existing), char(9) || char(10) || char(13) || ' ')) - 1
+    ) || ',' || substr((
+      SELECT json_group_array(value) FROM (SELECT value FROM additions ORDER BY position)
+    ), 2)
+  ELSE (
+    SELECT json_group_array(value) FROM (SELECT value FROM additions ORDER BY position)
+  ) END AS subdomains_json
+  FROM merge_state
+  WHERE valid AND inserted_count > 0 AND NOT exceeds_count_limit
+), merged AS MATERIALIZED (
+  SELECT CASE WHEN length(CAST(subdomains_json AS BLOB)) <= ?4 THEN subdomains_json
+  ELSE (
+    -- Compact only when preserved whitespace/escapes could put the row over the limit.
+    SELECT json_group_array(value) FROM (
+      SELECT value FROM (
+        SELECT value, position, 0 AS source FROM stored_entries
+        UNION ALL
+        SELECT value, position, 1 AS source FROM additions
+      ) ORDER BY source, position
+    )
+  ) END AS subdomains_json FROM candidate
+)
+INSERT INTO domains (id, domain, subdomains_json)
+SELECT (SELECT id FROM existing), ?1, subdomains_json FROM merged
+WHERE length(CAST(subdomains_json AS BLOB)) <= ?4
+ON CONFLICT(domain) DO UPDATE SET
+  subdomains_json = excluded.subdomains_json,
+  updated_at = CURRENT_TIMESTAMP
+`;
+
+export class SubdomainLimitError extends Error {
+  name = "SubdomainLimitError";
 }
 
 class DomainsModel {
@@ -75,142 +163,63 @@ class DomainsModel {
       };
     }
 
-    const domainRecord = await this.upsertDomain(db, domain);
-    const insertedSubdomainCount = await this.mergeSubdomainsJson(
-      db,
-      domainRecord.id,
-      domainRecord.subdomains_json,
-      subdomains,
-    );
+    const uniqueSubdomains = [...new Set(subdomains)];
+    const incomingJson = JSON.stringify(uniqueSubdomains);
+    if (
+      new TextEncoder().encode(incomingJson).length > MAX_SUBDOMAINS_JSON_BYTES
+    ) {
+      throw new SubdomainLimitError(
+        "Subdomains JSON is too large for D1: limit is 2,000,000 bytes",
+      );
+    }
+    // D1 executes a batch as one transaction. The metadata and conditional write
+    // share a snapshot, so counts stay exact without client-side reads or retries.
+    const [preflight, write] = await db.batch<MergeState>([
+      db
+        .prepare(`${MERGE_INPUTS_SQL} SELECT * FROM merge_state`)
+        .bind(domain, incomingJson, MAX_SUBDOMAINS),
+      db
+        .prepare(MERGE_SUBDOMAINS_SQL)
+        .bind(domain, incomingJson, MAX_SUBDOMAINS, MAX_SUBDOMAINS_JSON_BYTES),
+    ]);
+    const state = preflight.results[0];
+
+    if (!state?.valid) {
+      throw new Error(`Invalid subdomains JSON for domain: ${domain}`);
+    }
+
+    if (state.inserted_count > 0 && write.meta.changes === 0) {
+      if (state.exceeds_count_limit) {
+        throw new SubdomainLimitError(
+          "Subdomain limit exceeded: domains support at most 10,000 unique subdomains",
+        );
+      }
+      throw new SubdomainLimitError(
+        "Subdomains JSON is too large for D1: limit is 2,000,000 bytes",
+      );
+    }
 
     return {
       domain,
       acceptedSubdomainCount: subdomains.length,
-      insertedSubdomainCount,
-      created: domainRecord.created,
+      insertedSubdomainCount: state.inserted_count,
+      created: Boolean(state.created),
     };
-  }
-
-  private async upsertDomain(
-    db: D1Database,
-    domain: string,
-  ): Promise<DomainRecord & { created: boolean }> {
-    const existing = await db
-      .prepare("SELECT id, subdomains_json FROM domains WHERE domain = ?")
-      .bind(domain)
-      .first<DomainRecord>();
-
-    if (existing) {
-      await db
-        .prepare(
-          "UPDATE domains SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        )
-        .bind(existing.id)
-        .run();
-      return { ...existing, created: false };
-    }
-
-    const insertResult = await db
-      .prepare("INSERT OR IGNORE INTO domains (domain) VALUES (?)")
-      .bind(domain)
-      .run();
-
-    if (insertResult.meta.changes > 0) {
-      return {
-        id: insertResult.meta.last_row_id as number,
-        subdomains_json: "[]",
-        created: true,
-      };
-    }
-
-    const insertedByAnotherRequest = await db
-      .prepare("SELECT id, subdomains_json FROM domains WHERE domain = ?")
-      .bind(domain)
-      .first<DomainRecord>();
-
-    if (!insertedByAnotherRequest) {
-      throw new Error(`Unable to create or find domain: ${domain}`);
-    }
-
-    return { ...insertedByAnotherRequest, created: false };
-  }
-
-  private async mergeSubdomainsJson(
-    db: D1Database,
-    domainId: number,
-    initialSubdomainsJson: string | null,
-    subdomains: string[],
-  ): Promise<number> {
-    let currentSubdomainsJson = initialSubdomainsJson || "[]";
-
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const currentSubdomains = parseSubdomainsJson(currentSubdomainsJson);
-      if (!currentSubdomains) {
-        throw new Error(`Invalid subdomains JSON for domain id: ${domainId}`);
-      }
-
-      const nextSubdomains = [...currentSubdomains];
-      const seenSubdomains = new Set(currentSubdomains);
-
-      for (const subdomain of subdomains) {
-        if (!seenSubdomains.has(subdomain)) {
-          seenSubdomains.add(subdomain);
-          nextSubdomains.push(subdomain);
-        }
-      }
-
-      const insertedCount = nextSubdomains.length - currentSubdomains.length;
-      if (insertedCount === 0) {
-        return 0;
-      }
-
-      const nextSubdomainsJson = JSON.stringify(nextSubdomains);
-      assertD1StringSize(nextSubdomainsJson);
-
-      const result = await db
-        .prepare(
-          `
-            UPDATE domains
-            SET subdomains_json = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND subdomains_json = ?
-          `,
-        )
-        .bind(nextSubdomainsJson, domainId, currentSubdomainsJson)
-        .run();
-
-      if (result.meta.changes > 0) {
-        return insertedCount;
-      }
-
-      const latest = await db
-        .prepare("SELECT subdomains_json FROM domains WHERE id = ?")
-        .bind(domainId)
-        .first<DomainSubdomainsRecord>();
-
-      if (!latest) {
-        throw new Error(`Unable to find domain id: ${domainId}`);
-      }
-
-      currentSubdomainsJson = latest.subdomains_json || "[]";
-    }
-
-    throw new Error(
-      `Unable to update subdomains JSON after concurrent changes for domain id: ${domainId}`,
-    );
   }
 }
 
 const parseSubdomainsJson = (value: string | null): string[] | null => {
   if (!value) {
-    return [];
+    return null;
   }
 
   try {
     const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed.filter(
-        (subdomain): subdomain is string => typeof subdomain === "string",
-      );
+    if (
+      Array.isArray(parsed) &&
+      parsed.every((subdomain) => typeof subdomain === "string")
+    ) {
+      return parsed;
     }
   } catch {
     return null;
@@ -221,13 +230,6 @@ const parseSubdomainsJson = (value: string | null): string[] | null => {
 
 const isMissingSubdomainsJsonColumnError = (error: unknown) =>
   String(error).includes("no such column: subdomains_json");
-
-const assertD1StringSize = (value: string) => {
-  const bytes = new TextEncoder().encode(value).length;
-  if (bytes > 2_000_000) {
-    throw new Error(`Subdomains JSON is too large for D1: ${bytes} bytes`);
-  }
-};
 
 // Export singleton instance
 const Domains = new DomainsModel();

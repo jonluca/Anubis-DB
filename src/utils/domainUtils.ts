@@ -1,3 +1,10 @@
+import {
+  InputLimitError,
+  MAX_SUBDOMAIN_ITEMS,
+  MAX_SUBDOMAIN_TOKENS,
+  MAX_SUBDOMAIN_TOKEN_LENGTH,
+} from "./inputLimits";
+
 export const verifyDomain = (domain: string) => {
   if (!domain) {
     return false;
@@ -66,16 +73,50 @@ const cleanHostname = (domain: string, removeWww: boolean) => {
   }
 };
 export const getCleanedSubdomains = (subdomains: string[]): string[] => {
-  const cleaned = (subdomains || [])
-    .flatMap((subdomain) =>
-      subdomain.split(/,|<br>/).map((splitSub) => {
-        const newSub = cleanHostname(splitSub, false);
-        if (verifyDomain(newSub)) {
-          return newSub;
+  if (subdomains.length > MAX_SUBDOMAIN_ITEMS) {
+    throw new InputLimitError(
+      "Submit at most 10,000 subdomain items per request",
+    );
+  }
+
+  const cleaned = new Set<string>();
+  const seenTokens = new Set<string>();
+  let tokenCount = 0;
+
+  for (const subdomain of subdomains) {
+    const separator = /,|\r\n?|\n|<br\s*\/?>/gi;
+    let start = 0;
+
+    for (;;) {
+      const match = separator.exec(subdomain);
+      const end = match?.index ?? subdomain.length;
+      tokenCount += 1;
+      if (tokenCount > MAX_SUBDOMAIN_TOKENS) {
+        throw new InputLimitError(
+          "Submit at most 10,000 subdomain values after splitting separators",
+        );
+      }
+      if (end - start > MAX_SUBDOMAIN_TOKEN_LENGTH) {
+        throw new InputLimitError(
+          "Each subdomain value must contain at most 2,048 characters",
+        );
+      }
+
+      const token = subdomain.slice(start, end);
+      if (!seenTokens.has(token)) {
+        seenTokens.add(token);
+        const hostname = cleanHostname(token, false);
+        if (verifyDomain(hostname)) {
+          cleaned.add(hostname);
         }
-        return null;
-      }),
-    )
-    .filter((subdomain): subdomain is string => Boolean(subdomain));
-  return [...new Set(cleaned)];
+      }
+
+      if (!match) {
+        break;
+      }
+      start = match.index + match[0].length;
+    }
+  }
+
+  return [...cleaned];
 };
