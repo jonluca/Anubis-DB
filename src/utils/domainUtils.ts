@@ -60,9 +60,9 @@ const cleanHostname = (domain: string, removeWww: boolean) => {
 
   try {
     const host = new URL(`https://${cleanedDomain}`);
-    return (host.hostname || "").trim();
+    return (host.hostname || "").replace(/\.$/, "").trim();
   } catch {
-    return cleanedDomain;
+    return cleanedDomain.replace(/\.$/, "");
   }
 };
 export const getCleanedSubdomains = (subdomains: string[]): string[] => {

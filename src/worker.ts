@@ -732,16 +732,18 @@ const getCachedResponse = async (
 export const cacheKeyFor = (request: Request) => {
   const url = new URL(request.url);
   const pathname = stripAnubisPrefix(url.pathname);
+  url.pathname = pathname;
   const subdomainsMatch = pathname.match(/^\/subdomains\/([^/]+)\/?$/);
 
   if (subdomainsMatch) {
     const domain = cleanDomain(decodeDomainParam(subdomainsMatch[1]));
     url.pathname = `/subdomains/${encodeURIComponent(domain)}`;
-    url.search = "";
   } else if (pathname === "/" || pathname === "") {
     url.pathname = "/";
   }
 
+  url.search = "";
+  url.hash = "";
   return new Request(url, { method: "GET" });
 };
 
