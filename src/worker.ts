@@ -742,6 +742,10 @@ const text = (body: string, init: ResponseInit = {}) =>
 
 export const cacheKeyFor = (request: Request) => {
   const url = new URL(request.url);
+  if (url.host === "anubisdb.com" || url.host === "www.anubisdb.com") {
+    url.protocol = "https:";
+    url.hostname = "anubisdb.com";
+  }
   const pathname = stripAnubisPrefix(url.pathname);
   url.pathname = pathname;
   const subdomainsMatch = pathname.match(/^\/subdomains\/([^/]+)\/?$/);

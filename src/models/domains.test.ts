@@ -197,6 +197,43 @@ test("legacy over-limit domains allow duplicates and retain every stored value",
   assert.deepEqual(await Domains.getSubdomains(db, "example.com"), subdomains);
 });
 
+test("full-length legacy arrays with duplicate values retain capacity for unique additions", async (t) => {
+  const { db, sqlite } = createDatabase();
+  t.after(() => sqlite.close());
+  const original = makeSubdomains(9_998);
+  original.push(original[0], original[0], original[1]);
+  seedDomain(sqlite, JSON.stringify(original));
+
+  assert.equal(
+    (
+      await Domains.addSubdomainsToDomain(db, "example.com", [
+        "new.example.com",
+        "new.example.com",
+      ])
+    ).insertedSubdomainCount,
+    1,
+  );
+  assert.deepEqual(await Domains.getSubdomains(db, "example.com"), [
+    ...original,
+    "new.example.com",
+  ]);
+});
+
+test("the full-domain guard rejects mixed-type arrays without discarding stored values", async (t) => {
+  const { db, sqlite } = createDatabase();
+  t.after(() => sqlite.close());
+  seedDomain(sqlite, JSON.stringify([...makeSubdomains(9_999), null]));
+  const original = readDomain(sqlite);
+
+  for (const submission of [["s0.example.com"], ["new.example.com"]]) {
+    await assert.rejects(
+      Domains.addSubdomainsToDomain(db, "example.com", submission),
+      /Invalid subdomains JSON/,
+    );
+    assert.deepEqual(readDomain(sqlite), original);
+  }
+});
+
 test("the storage byte limit rejects both new and merged oversized JSON without mutations", async (t) => {
   const { db, sqlite } = createDatabase();
   t.after(() => sqlite.close());

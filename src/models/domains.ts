@@ -172,6 +172,39 @@ class DomainsModel {
         "Subdomains JSON is too large for D1: limit is 2,000,000 bytes",
       );
     }
+
+    // A scalar JSON length check reads one indexed domain row. Only full arrays
+    // leave D1, avoiding repeated billable JSON scans for requests that cannot add.
+    const fullDomain = await db
+      .prepare(
+        `SELECT subdomains_json FROM domains WHERE domain = ?
+         AND CASE WHEN json_valid(subdomains_json)
+           THEN json_array_length(subdomains_json) >= ? ELSE 0 END`,
+      )
+      .bind(domain, MAX_SUBDOMAINS)
+      .first<DomainSubdomainsRecord>();
+    if (fullDomain) {
+      const storedSubdomains = parseSubdomainsJson(fullDomain.subdomains_json);
+      if (!storedSubdomains) {
+        throw new Error(`Invalid subdomains JSON for domain: ${domain}`);
+      }
+      const stored = new Set(storedSubdomains);
+      if (uniqueSubdomains.every((subdomain) => stored.has(subdomain))) {
+        return {
+          domain,
+          acceptedSubdomainCount: subdomains.length,
+          insertedSubdomainCount: 0,
+          created: false,
+        };
+      }
+      if (stored.size >= MAX_SUBDOMAINS) {
+        throw new SubdomainLimitError(
+          "Subdomain limit exceeded: domains support at most 10,000 unique subdomains",
+        );
+      }
+      // Legacy duplicate entries can fill an array while unique values still fit.
+    }
+
     // D1 executes a batch as one transaction. The metadata and conditional write
     // share a snapshot, so counts stay exact without client-side reads or retries.
     const [preflight, write] = await db.batch<MergeState>([

@@ -4,7 +4,7 @@ import { setImmediate } from "node:timers/promises";
 import Domains from "../models/domains";
 import type { Env } from "../types";
 import { MAX_REQUEST_BODY_BYTES } from "../utils/inputLimits";
-import worker from "../worker";
+import worker, { cacheKeyFor } from "../worker";
 
 const setup = (t: TestContext) => {
   const entries = new Map<string, Response>();
@@ -51,6 +51,89 @@ const setup = (t: TestContext) => {
     url,
   };
 };
+
+test("production origin aliases share cached reads and POST invalidation", async (t) => {
+  const { request, flush } = setup(t);
+  let values = ["old.example.com"];
+  const read = t.mock.method(Domains, "getSubdomains", async () => values);
+  t.mock.method(
+    Domains,
+    "addSubdomainsToDomain",
+    async (_db, domain, subdomains) => {
+      values = [...values, ...subdomains];
+      return {
+        domain,
+        created: false,
+        acceptedSubdomainCount: subdomains.length,
+        insertedSubdomainCount: subdomains.length,
+      };
+    },
+  );
+  const aliases = [
+    "https://anubisdb.com/subdomains/example.com",
+    "https://www.anubisdb.com/anubis/subdomains/Example.COM./?source=www",
+    "http://anubisdb.com/subdomains/example.com?source=http",
+    "http://www.anubisdb.com/subdomains/example.com",
+  ];
+  for (const url of aliases) {
+    assert.deepEqual(await (await request(new Request(url))).json(), values);
+    await flush();
+  }
+  assert.equal(read.mock.callCount(), 1);
+
+  const submitted = await request(
+    new Request(aliases[1], {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subdomains: ["new.example.com"] }),
+    }),
+  );
+  assert.equal(submitted.status, 200);
+  await flush();
+
+  for (const url of aliases) {
+    assert.deepEqual(await (await request(new Request(url))).json(), values);
+    await flush();
+  }
+  assert.equal(read.mock.callCount(), 2);
+});
+
+test("static homepage aliases and query strings share one cached response", async (t) => {
+  const { cache, request, flush } = setup(t);
+  const put = t.mock.method(cache, "put");
+  let homepage: string | undefined;
+  for (const url of [
+    "https://anubisdb.com/",
+    "https://www.anubisdb.com/?source=www",
+    "http://anubisdb.com/anubis?source=legacy",
+    "http://www.anubisdb.com/anubis/?source=http",
+  ]) {
+    const response = await request(new Request(url));
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("Content-Type") ?? "", /text\/html/);
+    const body = await response.text();
+    homepage ??= body;
+    assert.equal(body, homepage);
+    await flush();
+  }
+  assert.equal(put.mock.callCount(), 1);
+});
+
+test("custom origins retain independent cache namespaces", () => {
+  for (const origin of [
+    "http://localhost:8787",
+    "https://custom.example",
+    "https://anubisdb.com.other.example",
+    "http://anubisdb.com:8787",
+  ]) {
+    assert.equal(
+      cacheKeyFor(
+        new Request(`${origin}/anubis/subdomains/Example.COM./?source=test`),
+      ).url,
+      `${origin}/subdomains/example.com`,
+    );
+  }
+});
 
 test("empty, duplicate, and unrelated submissions retain a warm cache", async (t) => {
   const { get, post, flush } = setup(t);

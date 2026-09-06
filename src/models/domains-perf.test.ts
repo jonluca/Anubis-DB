@@ -5,6 +5,53 @@ import { fileURLToPath, URL } from "node:url";
 import { getPlatformProxy } from "wrangler";
 import Domains, { SubdomainLimitError } from "./domains";
 
+const measureDatabase = (db: D1Database) => {
+  const metrics = {
+    bindingBytes: 0,
+    resultBytes: 0,
+    rowsRead: 0,
+    rowsWritten: 0,
+  };
+  const record = (results: D1Result[]) => {
+    metrics.resultBytes += Buffer.byteLength(JSON.stringify(results));
+    for (const result of results) {
+      metrics.rowsRead += result.meta.rows_read;
+      metrics.rowsWritten += result.meta.rows_written;
+    }
+  };
+  const measuredDb = {
+    prepare(query: string) {
+      const statement = db.prepare(query);
+      let bound = statement;
+      return {
+        bind(...values: unknown[]) {
+          metrics.bindingBytes += values.reduce<number>(
+            (sum, value) =>
+              sum + (typeof value === "string" ? Buffer.byteLength(value) : 0),
+            0,
+          );
+          bound = statement.bind(...values);
+          return this;
+        },
+        async first() {
+          const result = await bound.all();
+          record([result]);
+          return result.results[0] ?? null;
+        },
+        get statement() {
+          return bound;
+        },
+      };
+    },
+    async batch(statements: { statement: D1PreparedStatement }[]) {
+      const results = await db.batch(statements.map((item) => item.statement));
+      record(results);
+      return results;
+    },
+  } as unknown as D1Database;
+  return { db: measuredDb, metrics };
+};
+
 test(
   "atomic merges run in the local D1 runtime",
   { timeout: 60_000 },
@@ -116,44 +163,116 @@ test(
           )
           .bind("transport.test", JSON.stringify(original))
           .run();
-        let bindingBytes = 0;
-        let resultBytes = 0;
-        const measuredDb = {
-          prepare(query: string) {
-            const statement = db.prepare(query);
-            return {
-              bind(...values: unknown[]) {
-                bindingBytes += values.reduce<number>(
-                  (sum, value) =>
-                    sum +
-                    (typeof value === "string" ? Buffer.byteLength(value) : 0),
-                  0,
-                );
-                return statement.bind(...values);
-              },
-            };
-          },
-          async batch(statements: D1PreparedStatement[]) {
-            const results = await db.batch(statements);
-            resultBytes += Buffer.byteLength(JSON.stringify(results));
-            return results;
-          },
-        } as unknown as D1Database;
+        const { db: measuredDb, metrics } = measureDatabase(db);
         const result = await Domains.addSubdomainsToDomain(
           measuredDb,
           "transport.test",
           ["new.transport.test"],
         );
         assert.equal(result.insertedSubdomainCount, 1);
-        assert.ok(bindingBytes < 500, `sent ${bindingBytes} bytes of bindings`);
         assert.ok(
-          resultBytes < 2_000,
-          `received ${resultBytes} bytes of results`,
+          metrics.bindingBytes < 500,
+          `sent ${metrics.bindingBytes} bytes of bindings`,
+        );
+        assert.ok(
+          metrics.resultBytes < 2_000,
+          `received ${metrics.resultBytes} bytes of results`,
         );
         assert.deepEqual(await Domains.getSubdomains(db, "transport.test"), [
           ...original,
           "new.transport.test",
         ]);
+      },
+    );
+
+    for (const count of [10_000, 12_000]) {
+      await t.test(
+        `duplicate and rejected submissions to ${count} stored values cost one read and no writes`,
+        async () => {
+          const domain = `cost${count}.test`;
+          const original = Array.from(
+            { length: count },
+            (_, index) => `s${index}.${domain}`,
+          );
+          await db
+            .prepare(
+              "INSERT INTO domains (domain, subdomains_json, updated_at) VALUES (?, ?, ?)",
+            )
+            .bind(domain, JSON.stringify(original), "2000-01-01 00:00:00")
+            .run();
+          const before = await db
+            .prepare("SELECT * FROM domains WHERE domain = ?")
+            .bind(domain)
+            .first();
+
+          for (const submission of [[original[0]], original]) {
+            const { db: measuredDb, metrics } = measureDatabase(db);
+            assert.deepEqual(
+              await Domains.addSubdomainsToDomain(
+                measuredDb,
+                domain,
+                submission,
+              ),
+              {
+                domain,
+                acceptedSubdomainCount: submission.length,
+                insertedSubdomainCount: 0,
+                created: false,
+              },
+            );
+            assert.equal(metrics.rowsRead, 1);
+            assert.equal(metrics.rowsWritten, 0);
+          }
+
+          const { db: measuredDb, metrics } = measureDatabase(db);
+          await assert.rejects(
+            Domains.addSubdomainsToDomain(measuredDb, domain, [
+              `new.${domain}`,
+            ]),
+            SubdomainLimitError,
+          );
+          assert.equal(metrics.rowsRead, 1);
+          assert.equal(metrics.rowsWritten, 0);
+          assert.deepEqual(
+            await db
+              .prepare("SELECT * FROM domains WHERE domain = ?")
+              .bind(domain)
+              .first(),
+            before,
+          );
+        },
+      );
+    }
+
+    await t.test(
+      "large legacy arrays with duplicate entries still accept unique additions atomically",
+      async () => {
+        const domain = "duplicates.test";
+        const original = Array.from(
+          { length: 9_999 },
+          (_, index) => `s${index}.${domain}`,
+        );
+        original.push(original[0], original[0]);
+        await db
+          .prepare(
+            "INSERT INTO domains (domain, subdomains_json) VALUES (?, ?)",
+          )
+          .bind(domain, JSON.stringify(original))
+          .run();
+        const results = await Promise.allSettled([
+          Domains.addSubdomainsToDomain(db, domain, [`a.${domain}`]),
+          Domains.addSubdomainsToDomain(db, domain, [`b.${domain}`]),
+        ]);
+        const successes = results.filter(
+          (result) => result.status === "fulfilled",
+        );
+        assert.equal(successes.length, 1);
+        assert.equal(successes[0].value.insertedSubdomainCount, 1);
+        const failure = results.find((result) => result.status === "rejected");
+        assert.ok(failure && failure.reason instanceof SubdomainLimitError);
+        const stored = await Domains.getSubdomains(db, domain);
+        assert.deepEqual(stored.slice(0, original.length), original);
+        assert.equal(new Set(stored).size, 10_000);
       },
     );
 

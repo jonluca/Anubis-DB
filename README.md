@@ -100,9 +100,19 @@ URL-encoded requests may contain at most 100 form fields. Split larger submissio
 into separate requests. Rejected submissions do not partially add data.
 
 Additions are merged atomically in D1, so concurrent submissions preserve each
-other's values. Empty or duplicate-only POSTs retain cached GET results. Concurrent
+other's values. For domains at capacity, an indexed precheck handles duplicate or
+rejected submissions without repeatedly scanning JSON values as billable rows.
+Smaller domains incur one extra indexed read; successful changes still use the
+atomic merge. Empty or duplicate-only POSTs retain cached GET results. Concurrent
 GET cache misses share a read within each Worker isolate; the edge cache retains
-the existing five-minute lifetime.
+the existing five-minute lifetime. HTTP/HTTPS and the apex/`www` production hosts
+share the same cache entries and invalidation.
+
+Worker CPU time is capped at 100 ms per invocation. The `workers.dev` route and
+preview URLs are explicitly disabled so traffic uses the configured production
+hosts. Routine invocation logs and tracing are disabled; server errors are still
+logged. These controls bound work per request, but total request volume remains
+billable and is not a monthly spending cap.
 
 ## Cloudflare Workers and D1
 
