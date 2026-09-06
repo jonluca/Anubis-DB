@@ -19,6 +19,8 @@ GET returns the full list of known subdomains for the domain. POST stores valid
 submitted subdomains and returns counts only; it does not return the full stored
 subdomain list. Use GET after POST if you need the current full list.
 
+The API supports cross-origin browser requests, including JSON POST preflights.
+
 A sample AJAX GET request looks like:
 
 ```js
@@ -71,7 +73,8 @@ fetch("https://anubisdb.com/subdomains/reddit.com", {
 | Status | Endpoint                                          |
 | ------ | ------------------------------------------------- |
 | 200    | Success                                           |
-| 300    | Domain did/does not exist in database             |
+| 201    | New domain created                                |
+| 400    | Malformed request body                            |
 | 403    | Invalid domain or subdomains                      |
 | 413    | Submission exceeds input or domain storage limits |
 | 429    | Rate limit exceeded                               |
@@ -122,9 +125,11 @@ Run `pnpm lint` for Oxlint, `pnpm format` to format with Oxfmt, and
 and `pnpm test`.
 
 `pnpm migrate:postgres` reads the source PostgreSQL URL from `DB_URL` or
-`SOURCE_DB_URL`, generates D1-compatible SQL chunks in `.d1-import`, and applies
-them to the remote D1 database with Wrangler. Keep `CLOUDFLARE_API_TOKEN` in the
-shell environment when running remote D1 or deploy commands.
+`SOURCE_DB_URL`, exports a consistent read-only snapshot into a unique
+`.d1-import/run-<unique>/` directory, and applies the SQL chunks to the remote D1
+database with Wrangler. `D1_IMPORT_DIR` overrides the parent directory; existing
+files and other export runs are preserved. Keep `CLOUDFLARE_API_TOKEN` in the shell
+environment when running remote D1 or deploy commands.
 
 ## Contributing
 

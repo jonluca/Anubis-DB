@@ -58,19 +58,27 @@ const cleanHostname = (domain: string, removeWww: boolean) => {
   let cleanedDomain = domain
     .toLowerCase()
     .trim()
-    .replace(/^https?:\/\//, "")
-    .replace(/^\*\./, "");
+    .replace(/^https?:\/\//, "");
 
-  if (removeWww) {
-    cleanedDomain = cleanedDomain.replace(/^www\./, "");
+  // URL parsing silently removes these characters, potentially joining hostnames.
+  if (/[\t\r\n]/.test(cleanedDomain)) {
+    return "";
   }
 
   try {
     const host = new URL(`https://${cleanedDomain}`);
-    return (host.hostname || "").replace(/\.$/, "").trim();
+    cleanedDomain = host.hostname;
   } catch {
-    return cleanedDomain.replace(/\.$/, "");
+    // Leave malformed input for verifyDomain to reject.
   }
+
+  cleanedDomain = cleanedDomain.replace(/^\*\./, "");
+  if (removeWww) {
+    cleanedDomain = cleanedDomain.replace(/^www\./, "");
+  }
+
+  // A single trailing dot denotes the DNS root; repeated dots remain invalid.
+  return cleanedDomain.replace(/([^.])\.$/, "$1");
 };
 export const getCleanedSubdomains = (subdomains: string[]): string[] => {
   if (subdomains.length > MAX_SUBDOMAIN_ITEMS) {

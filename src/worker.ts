@@ -6,7 +6,6 @@ import {
   verifyDomain,
   verifySubdomains,
 } from "./utils/domainUtils";
-
 import { InputLimitError, MAX_SUBDOMAIN_ITEMS } from "./utils/inputLimits";
 import { parseBody } from "./utils/requestBody";
 import {
@@ -529,37 +528,63 @@ export default {
     env: Env,
     ctx: ExecutionContext,
   ): Promise<Response> {
-    const url = new URL(request.url);
-    const pathname = stripAnubisPrefix(url.pathname);
-    const isHomePage = pathname === "/" || pathname === "";
-
-    if (request.method === "GET" && isHomePage) {
-      return getCachedResponse(cacheKeyFor(request), ctx, () =>
-        Promise.resolve(html(homePage, withPublicCache())),
-      );
-    }
-
-    if (request.method === "HEAD" && isHomePage) {
-      return html("", withPublicCache());
-    }
-
-    const subdomainsMatch = pathname.match(/^\/subdomains\/([^/]+)\/?$/);
-    if (!subdomainsMatch) {
-      return text("404", { status: 404 });
-    }
-
-    const domain = cleanDomain(decodeDomainParam(subdomainsMatch[1]));
-
-    if (request.method === "GET") {
-      return handleGetSubdomains(request, env, ctx, domain);
-    }
-
-    if (request.method === "POST") {
-      return handlePostSubdomains(request, env, ctx, domain);
-    }
-
-    return json({ error: "Method not allowed" }, { status: 405 });
+    const response = await handleRequest(request, env, ctx);
+    const corsResponse = new Response(response.body, response);
+    corsResponse.headers.set("Access-Control-Allow-Origin", "*");
+    return corsResponse;
   },
+};
+
+const handleRequest = async (
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> => {
+  const url = new URL(request.url);
+  const pathname = stripAnubisPrefix(url.pathname);
+  const isHomePage = pathname === "/" || pathname === "";
+
+  if (request.method === "GET" && isHomePage) {
+    return getCachedResponse(cacheKeyFor(request), ctx, () =>
+      Promise.resolve(html(homePage, withPublicCache())),
+    );
+  }
+
+  if (request.method === "HEAD" && isHomePage) {
+    return html("", withPublicCache());
+  }
+
+  const subdomainsMatch = pathname.match(/^\/subdomains\/([^/]+)\/?$/);
+  if (!subdomainsMatch) {
+    return text("404", { status: 404 });
+  }
+
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        Allow: "GET, POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
+
+  const domain = cleanDomain(decodeDomainParam(subdomainsMatch[1]));
+
+  if (request.method === "GET") {
+    return handleGetSubdomains(request, env, ctx, domain);
+  }
+
+  if (request.method === "POST") {
+    return handlePostSubdomains(request, env, ctx, domain);
+  }
+
+  return json(
+    { error: "Method not allowed" },
+    { status: 405, headers: { Allow: "GET, POST, OPTIONS" } },
+  );
 };
 
 const handleGetSubdomains = async (

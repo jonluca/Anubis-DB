@@ -9,17 +9,18 @@
  *
  * Optional environment:
  * - D1_DATABASE_NAME: target D1 database name or binding (default: anubis-db).
- * - D1_IMPORT_DIR: generated SQL chunk directory (default: .d1-import).
+ * - D1_IMPORT_DIR: parent of generated SQL directories (default: .d1-import).
  * - D1_IMPORT_FILE_BYTES: approximate max bytes per generated SQL file.
  */
 
 import "dotenv/config";
 import { spawnSync } from "node:child_process";
 import { createWriteStream, type WriteStream } from "node:fs";
-import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { once } from "node:events";
-import { Pool } from "pg";
+import { Pool, type PoolClient } from "pg";
+import { createImportDirectory, withSourceSnapshot } from "./migration-utils";
 
 const POSTGRES_URL = process.env.SOURCE_DB_URL || process.env.DB_URL;
 const D1_DATABASE_NAME = process.env.D1_DATABASE_NAME || "anubis-db";
@@ -99,34 +100,34 @@ class SqlChunkWriter {
 
 const pool = new Pool({
   connectionString: POSTGRES_URL,
-  max: 4,
+  max: 1,
 });
 
 async function main() {
   console.log("Preparing PostgreSQL to D1 migration.");
   console.log(`Target D1 database: ${D1_DATABASE_NAME}`);
-  console.log(`Import directory: ${IMPORT_DIR}`);
+  const outputDir = await createImportDirectory(IMPORT_DIR);
+  console.log(`Import directory: ${outputDir}`);
 
-  await rm(IMPORT_DIR, { recursive: true, force: true });
-  await mkdir(IMPORT_DIR, { recursive: true });
+  await writeResetFile(outputDir);
 
-  const counts = await getCounts();
-  console.log(
-    `Source contains ${counts.domains.toLocaleString()} domains and ${counts.subdomains.toLocaleString()} subdomains.`,
-  );
-
-  await writeResetFile();
-
-  const writer = new SqlChunkWriter(IMPORT_DIR);
+  const writer = new SqlChunkWriter(outputDir);
   try {
-    await exportDomains(writer);
-    await exportSubdomains(writer);
-    await writeDenormalizedSubdomainsBackfillAndCleanup(writer);
+    await withSourceSnapshot(pool, async (client) => {
+      const counts = await getCounts(client);
+      console.log(
+        `Source contains ${counts.domains.toLocaleString()} domains and ${counts.subdomains.toLocaleString()} subdomains.`,
+      );
+
+      await exportDomains(client, writer);
+      await exportSubdomains(client, writer);
+      await writeDenormalizedSubdomainsBackfillAndCleanup(writer);
+    });
   } finally {
     await writer.close();
   }
 
-  const files = await listSqlFiles();
+  const files = await listSqlFiles(outputDir);
   await logGeneratedFiles(files);
 
   if (shouldApply) {
@@ -138,12 +139,12 @@ async function main() {
   }
 
   if (!keepFiles && shouldApply) {
-    await rm(IMPORT_DIR, { recursive: true, force: true });
+    await rm(outputDir, { recursive: true, force: true });
   }
 }
 
-async function getCounts() {
-  const result = await pool.query<{
+async function getCounts(client: PoolClient) {
+  const result = await client.query<{
     domains: string;
     subdomains: string;
   }>(`
@@ -158,7 +159,7 @@ async function getCounts() {
   };
 }
 
-async function writeResetFile() {
+async function writeResetFile(outputDir: string) {
   const resetSql = `PRAGMA defer_foreign_keys = true;
 CREATE TABLE IF NOT EXISTS subdomains (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -171,17 +172,17 @@ DELETE FROM subdomains;
 DELETE FROM domains;
 DELETE FROM sqlite_sequence WHERE name IN ('domains', 'subdomains');
 `;
-  await writeFile(path.join(IMPORT_DIR, "0000_reset.sql"), resetSql);
+  await writeFile(path.join(outputDir, "0000_reset.sql"), resetSql);
 }
 
-async function exportDomains(writer: SqlChunkWriter) {
+async function exportDomains(client: PoolClient, writer: SqlChunkWriter) {
   console.log("Exporting domains...");
 
   let lastId = 0;
   let exported = 0;
 
   for (;;) {
-    const result = await pool.query<DomainRow>(
+    const result = await client.query<DomainRow>(
       `
         SELECT id, domain, created_at::text, updated_at::text
         FROM domains
@@ -216,14 +217,14 @@ async function exportDomains(writer: SqlChunkWriter) {
   process.stdout.write("\n");
 }
 
-async function exportSubdomains(writer: SqlChunkWriter) {
+async function exportSubdomains(client: PoolClient, writer: SqlChunkWriter) {
   console.log("Exporting subdomains...");
 
   let lastId = 0;
   let exported = 0;
 
   for (;;) {
-    const result = await pool.query<SubdomainRow>(
+    const result = await client.query<SubdomainRow>(
       `
         SELECT id, domain_id, subdomain, created_at::text
         FROM subdomains
@@ -323,12 +324,12 @@ const sqlValue = (value: SqlValue) => {
   return `'${value.replaceAll("'", "''")}'`;
 };
 
-async function listSqlFiles() {
-  const files = await readdir(IMPORT_DIR);
+async function listSqlFiles(outputDir: string) {
+  const files = await readdir(outputDir);
   return files
     .filter((file) => file.endsWith(".sql"))
     .sort()
-    .map((file) => path.join(IMPORT_DIR, file));
+    .map((file) => path.join(outputDir, file));
 }
 
 async function logGeneratedFiles(files: string[]) {

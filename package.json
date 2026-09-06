@@ -10,7 +10,7 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint .",
-    "test": "tsx --test src/**/*.test.ts test/*.test.ts",
+    "test": "tsx --test src/**/*.test.ts test/*.test.ts scripts/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply anubis-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply anubis-db --remote",

@@ -27,6 +27,6 @@
     "skipLibCheck": true,
     "target": "ESNext"
   },
-  "include": ["src/**/*", "*"],
+  "include": ["src/**/*", "scripts/**/*", "*"],
   "exclude": ["node_modules"]
 }
