@@ -108,11 +108,17 @@ GET cache misses share a read within each Worker isolate; the edge cache retains
 the existing five-minute lifetime. HTTP/HTTPS and the apex/`www` production hosts
 share the same cache entries and invalidation.
 
-Worker CPU time is capped at 100 ms per invocation. The `workers.dev` route and
-preview URLs are explicitly disabled so traffic uses the configured production
-hosts. Routine invocation logs and tracing are disabled; server errors are still
-logged. These controls bound work per request, but total request volume remains
-billable and is not a monthly spending cap.
+Worker CPU time is capped at 500 ms per invocation. A production analytics review
+on September 6, 2026 covered approximately 90 days and 27.2 million requests:
+successful requests reached 139 ms of CPU, with peaks above 100 ms on four days.
+The 500 ms limit leaves headroom for rare large submissions and variation beyond
+those sampled observations. Network and D1 wait time do not count toward Worker
+CPU; billing uses actual CPU consumed, not the configured ceiling.
+
+The `workers.dev` route and preview URLs are explicitly disabled so traffic uses
+the configured production hosts. Routine invocation logs and tracing are disabled;
+server errors are still logged. These controls bound work per request, but total
+request volume remains billable and is not a monthly spending cap.
 
 ## Cloudflare Workers and D1
 

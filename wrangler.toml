@@ -9,7 +9,8 @@ routes = [
 ]
 
 [limits]
-cpu_ms = 100
+# Leave headroom above sampled production CPU peaks; see README.
+cpu_ms = 500
 
 [observability]
 enabled = true
