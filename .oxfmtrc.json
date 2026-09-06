@@ -3,7 +3,7 @@
   "ignorePatterns": [
     ".claude/**",
     ".wrangler/**",
-    ".yarn/**",
+    ".pnpm-store/**",
     "coverage/**",
     "db/**",
     "dist/**",

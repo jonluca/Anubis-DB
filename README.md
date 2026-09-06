@@ -93,14 +93,20 @@ This service runs as a Cloudflare Worker backed by the `anubis-db` D1 database.
 Useful commands:
 
 ```sh
-yarn dev
-yarn db:migrate:local
-yarn db:migrate:remote
-yarn migrate:postgres
-yarn deploy
+pnpm install --frozen-lockfile
+pnpm dev
+pnpm db:migrate:local
+pnpm db:migrate:remote
+pnpm migrate:postgres
+pnpm run deploy
 ```
 
-`yarn migrate:postgres` reads the source PostgreSQL URL from `DB_URL` or
+Use Node.js 22.12 or newer and the pnpm version pinned in `package.json`.
+Run `pnpm lint` for Oxlint, `pnpm format` to format with Oxfmt, and
+`pnpm format:check` to check formatting. Validate changes with `pnpm typecheck`
+and `pnpm test`.
+
+`pnpm migrate:postgres` reads the source PostgreSQL URL from `DB_URL` or
 `SOURCE_DB_URL`, generates D1-compatible SQL chunks in `.d1-import`, and applies
 them to the remote D1 database with Wrangler. Keep `CLOUDFLARE_API_TOKEN` in the
 shell environment when running remote D1 or deploy commands.

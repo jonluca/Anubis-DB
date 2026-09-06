@@ -359,8 +359,9 @@ function applySqlFiles(files: string[]) {
   for (const [index, file] of files.entries()) {
     console.log(`Applying ${index + 1}/${files.length}: ${file}`);
     const result = spawnSync(
-      "yarn",
+      "pnpm",
       [
+        "exec",
         "wrangler",
         "d1",
         "execute",
